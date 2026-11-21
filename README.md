@@ -1,5 +1,7 @@
 # eval-studio
 
+[![test](https://github.com/VinVirtual/eval-studio/actions/workflows/test.yml/badge.svg)](https://github.com/VinVirtual/eval-studio/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ![The eval-studio report for the example bot: score 81.8, one case got worse, one was fixed, and the regressed case opened with the baseline answer beside the new one](docs/report.jpg)
 
 Test a chatbot, a retrieval (RAG) system or an AI agent the way software is tested: write test cases, run them against the real system, score the answers with checks, compare with the last run, and get one report page that shows what passed, what failed and **what got worse**.
