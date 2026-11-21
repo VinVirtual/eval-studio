@@ -12,6 +12,7 @@ const FILTERS = [
   { key: 'fixed', name: 'Fixed', test: (c) => c.change === 'fixed' },
   { key: 'passing', name: 'Passing', test: (c) => c.status === 'pass' },
 ]
+const MIN_SHARED_FOR_DIFF = 0.4
 const LIMITS = [
   'String checks are blunt: an answer can contain the right words and still be wrong.',
   'Model-judged scores change between runs and are an opinion, not ground truth.',
@@ -30,6 +31,9 @@ function h(tag, attrs, ...kids) {
   for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) el.append(kid)
   return el
 }
+
+/** append that skips null and false, which Element.append would print as text */
+const put = (el, ...kids) => el.append(...kids.flat(Infinity).filter((kid) => kid !== null && kid !== undefined && kid !== false))
 
 // ---------- formatting ----------
 const fmtMs = (ms) => (ms === null || ms === undefined ? '–' : ms < 10 ? `${ms.toFixed(1)} ms` : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`)
@@ -86,7 +90,7 @@ function drawMast() {
     run.settings.repeat > 1 && ['Repeats', `${run.settings.repeat} per case`],
     run.judge && ['Judge model', run.judge.model],
   ].filter(Boolean)
-  byId('mast').append(
+  put(byId('mast'),
     h('div', { class: 'mast-bar' },
       h('span', { class: 'eyebrow' }, 'eval-studio · report'),
       h('button', { class: 'theme-toggle', id: 'theme-toggle', type: 'button', onclick: () => { state.theme = effectiveTheme() === 'dark' ? 'light' : 'dark'; applyTheme(); writeHash() } })),
@@ -151,8 +155,8 @@ function drawVerdict() {
     s.inputTokens !== null && figure('Tokens', String((s.inputTokens || 0) + (s.outputTokens || 0)), `${s.inputTokens || 0} in · ${s.outputTokens || 0} out`),
     s.cost !== null && figure('Cost', String(s.cost), 'as reported by the target'),
   ]
-  const spread = [['seg-pass', s.pass, 'passing'], ['seg-flaky', s.flaky, 'flaky'], ['seg-fail', s.fail, 'failing'], ['seg-fail', s.error, 'errors'], ['seg-skip', s.skipped, 'skipped']].filter(([, n]) => n > 0)
-  byId('verdict').append(
+  const spread = [['seg-pass', s.pass, 'passing'], ['seg-flaky', s.flaky, 'flaky'], ['seg-fail', s.fail, 'failing'], ['seg-fail', s.error, s.error === 1 ? 'error' : 'errors'], ['seg-skip', s.skipped, 'skipped']].filter(([, n]) => n > 0)
+  put(byId('verdict'),
     h('div', { class: 'verdict-grid' },
       h('div', null,
         h('span', { class: 'label' }, 'Score, weighted, out of 100'),
@@ -185,7 +189,7 @@ function drawChanges() {
       ? rows.map((r) => h('li', null, h('button', { class: 'jump', type: 'button', onclick: () => openCase(r.id) }, r.id), h('p', null, r.reason || inputOf(r.id))))
       : h('li', { class: 'none' }, none)))
   const also = [cmp.added.length && `${plural(cmp.added.length, 'new case')}: ${cmp.added.join(', ')}`, cmp.removed.length && `${plural(cmp.removed.length, 'case')} no longer in the set: ${cmp.removed.join(', ')}`].filter(Boolean)
-  box.append(
+  put(box,
     h('div', { class: 'section-head' },
       h('h2', null, 'What changed'),
       h('p', null, `against ${runName(DATA.baseline)} · ${cmp.unchanged.pass} still passing, ${cmp.unchanged.fail} still failing`)),
@@ -202,16 +206,23 @@ function answerBody(text, error, parts, keep) {
   if (!parts) return h('div', { class: 'answer-text' }, text)
   return h('div', { class: 'answer-text' }, parts.filter((p) => p.op === 'same' || p.op === keep).flatMap((p, i) => [i ? ' ' : '', p.op === 'same' ? p.text : h(keep === 'del' ? 'del' : 'ins', null, p.text)]))
 }
+/** A word diff, or null when the two answers share so little that marking every word would only add noise. */
+function usefulDiff(before, after) {
+  const parts = wordDiff(before, after)
+  if (!parts) return null
+  const size = (op) => parts.filter((p) => p.op === op).reduce((n, p) => n + p.text.length, 0)
+  return size('same') >= MIN_SHARED_FOR_DIFF * Math.max(size('same') + size('del'), size('same') + size('add')) ? parts : null
+}
 function answersBlock(c, attempt) {
   const base = c.base
   const nowHead = h('h4', null, 'This run', h('span', { class: `status ${attempt.error ? 'error' : attempt.pass === null ? 'skipped' : attempt.pass ? 'pass' : 'fail'}` }, attempt.error ? 'Error' : attempt.pass === null ? 'Skipped' : attempt.pass ? 'Pass' : 'Fail'))
   if (!base) return h('section', { class: 'answer now' }, nowHead, answerBody(attempt.answer, attempt.error))
   const same = !attempt.error && !base.error && attempt.answer === base.answer
-  const parts = same || attempt.error || base.error ? null : wordDiff(base.answer, attempt.answer)
-  if (same) nowHead.append(h('span', { class: 'same-note' }, 'same text as the baseline'))
+  const parts = same || attempt.error || base.error ? null : usefulDiff(base.answer, attempt.answer)
+  if (same) put(nowHead, h('span', { class: 'same-note' }, 'same text as the baseline'))
   return h('div', { class: 'pair' },
     h('section', { class: 'answer base' },
-      h('h4', null, `Baseline · ${runName(DATA.baseline)}`, h('span', { class: `status ${base.status}` }, STATUS_NAMES[base.status])),
+      h('h4', null, /^baseline$/i.test(runName(DATA.baseline)) ? 'Baseline' : `Baseline · ${runName(DATA.baseline)}`, h('span', { class: `status ${base.status}` }, STATUS_NAMES[base.status])),
       answerBody(base.answer, base.error, parts, 'del')),
     h('section', { class: 'answer now' }, nowHead, answerBody(attempt.answer, attempt.error, parts, 'add')))
 }
@@ -224,7 +235,7 @@ function checksBlock(c, attempt) {
     h('ul', { class: 'checks' }, checks.map((k, i) => {
       const was = baseChecks[i] && baseChecks[i].type === k.type && baseChecks[i].pass !== k.pass && baseChecks[i].pass !== null && k.pass !== null
       return h('li', { class: k.pass === false ? 'failed' : '' },
-        h('span', { class: `mark ${k.pass === null ? 'skip' : k.pass ? 'pass' : 'fail'}`, 'aria-label': k.pass === null ? 'skipped' : k.pass ? 'passed' : 'failed' }, k.pass === null ? '–' : k.pass ? '✓' : '✕'),
+        h('span', { class: `mark ${k.pass === null ? 'none' : k.pass ? 'pass' : 'fail'}`, 'aria-label': k.pass === null ? 'skipped' : k.pass ? 'passed' : 'failed' }, k.pass === null ? '–' : k.pass ? '✓' : '✕'),
         h('span', { class: 'check-type' }, k.type, k.modelJudged ? [' ', h('span', { class: 'badge judged' }, 'model-judged')] : null),
         h('span', null, k.expected),
         h('span', { class: 'check-got' }, k.detail, was ? h('span', { class: 'was' }, `baseline: ${baseChecks[i].pass ? 'passed' : 'failed'} (${baseChecks[i].detail})`) : null))
@@ -259,7 +270,7 @@ function factsBlock(c, attempt) {
   const facts = [
     `latency ${fmtMs(attempt.latencyMs)}`,
     c.base && c.latencyDelta !== null && `baseline ${fmtMs(c.base.latencyMs)}`,
-    attempt.retries ? `${plural(attempt.retries, 'retry').replace('retrys', 'retries')}` : null,
+    attempt.retries ? `${attempt.retries} ${attempt.retries === 1 ? 'retry' : 'retries'}` : null,
     usage.inputTokens !== undefined && `${usage.inputTokens} tokens in`,
     usage.outputTokens !== undefined && `${usage.outputTokens} tokens out`,
     usage.cost !== undefined && `cost ${usage.cost}`,
@@ -271,7 +282,8 @@ function drawDetail(c, holder, index) {
   const attempt = c.attempts[index] || { checks: [] }
   const picker = c.attempts.length > 1 ? h('div', { class: 'attempts' }, h('span', { class: 'label' }, 'Attempt'),
     c.attempts.map((a, i) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(i === index), onclick: () => drawDetail(c, holder, i) }, `${i + 1}`, h('b', null, a.error ? 'error' : a.pass ? 'pass' : a.pass === null ? 'skip' : 'fail')))) : null
-  holder.replaceChildren(
+  holder.replaceChildren()
+  put(holder,
     h('div', { class: 'pair' },
       h('section', null, h('h4', null, 'Question'), h('p', { class: 'question' }, c.input)),
       h('section', null, h('h4', null, 'Expected'), h('p', { class: 'expected' }, c.expected || 'See the checks below.'), c.note ? h('p', { class: 'note' }, c.note) : null)),
@@ -332,7 +344,7 @@ function drawCases() {
   DATA.cases = DATA.cases.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map(({ c }) => c)
   const tags = [...new Set(DATA.cases.flatMap((c) => c.tags))].sort()
   const filters = FILTERS.filter((f) => DATA.comparison || !['regressed', 'fixed'].includes(f.key))
-  byId('cases').append(
+  put(byId('cases'),
     h('div', { class: 'section-head' }, h('h2', null, 'Cases'), h('p', { id: 'shown', 'aria-live': 'polite' })),
     h('div', { class: 'toolbar' },
       h('div', { class: 'toolbar-row', role: 'group', 'aria-label': 'Filter by result' },
@@ -347,7 +359,7 @@ function drawCases() {
 
 function drawFoot() {
   const judged = DATA.summary.modelJudgedChecks
-  byId('foot').append(h('div', { class: 'foot-inner' },
+  put(byId('foot'),h('div', { class: 'foot-inner' },
     h('div', null, h('h3', null, 'Read this report with care'), h('ul', null, LIMITS.map((t) => h('li', null, t)),
       h('li', null, judged ? `${plural(judged, 'check')} per run in this report ${judged === 1 ? 'was' : 'were'} scored by a model (${DATA.run.judge ? DATA.run.judge.model : 'judge'}) and ${judged === 1 ? 'is' : 'are'} marked "model-judged".` : 'No check in this run was scored by a model.'))),
     h('div', null, h('h3', null, 'About this file'), h('p', null, `Made by eval-studio on ${fmtDate(DATA.generatedAt)}. One file, nothing loaded from the network. Obvious secrets are masked before saving.`))))
