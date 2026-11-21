@@ -1,0 +1,44 @@
+# Example GitHub Actions workflow: run the evals on every pull request and fail the check when
+# a case that passed in the committed baseline stops passing.
+# Copy to .github/workflows/evals.yml in your repository and adjust the paths.
+#
+# The baseline is a scored run committed to the repository (evals baseline <run> writes it).
+# Keys come from repository secrets; eval-studio reads them from the environment only and masks
+# them in the run file and the report.
+name: evals
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Get eval-studio
+        run: git clone --depth 1 https://github.com/VinVirtual/eval-studio "$RUNNER_TEMP/eval-studio"
+
+      # Start your system here if the target is an HTTP endpoint, for example:
+      # - run: npm ci && (npm start &) && npx wait-on http://localhost:3000/health
+
+      - name: Run, score, compare with the baseline, write the report
+        working-directory: evals          # the folder with evals.config.json
+        env:
+          BOT_API_KEY: ${{ secrets.BOT_API_KEY }}   # only if the target needs one
+        run: node "$RUNNER_TEMP/eval-studio/engine/cli.mjs" build --label "pr-${{ github.event.pull_request.number || github.run_number }}"
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            evals/report.html
+            evals/runs/
