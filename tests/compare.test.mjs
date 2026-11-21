@@ -34,6 +34,12 @@ test('a case threshold lets a case pass with part credit', async () => {
   assert.equal(out.cases[0].status, 'pass'); assert.equal(out.cases[0].score, 0.5)
 })
 
+test('without a threshold a case passes when every check passes, even with a judge score below 1', async () => {
+  const judge = { enabled: true, model: 'stub', grade: async () => ({ score: 0.9, reason: 'ok' }) }
+  const out = await scoreRun(run('a', [stored('j', 'yes', { checks: [has('yes'), { type: 'judge', rubric: 'r' }] })]), [], { judge })
+  assert.equal(out.cases[0].status, 'pass'); assert.equal(out.cases[0].score, 0.95); assert.deepEqual(out.judge, { model: 'stub' })
+})
+
 test('repeats: mixed attempts are flaky, errors score zero, skipped cases are left out of the score', async () => {
   const out = await scored('a', [
     stored('wobbly', ['yes', 'no', 'yes']),

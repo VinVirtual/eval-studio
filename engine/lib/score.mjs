@@ -2,7 +2,7 @@
 import { runChecks } from './checks/index.mjs'
 import { median, percentile, round } from './util.mjs'
 
-const DEFAULT_CASE_THRESHOLD = 1
+const SCORE_EPSILON = 1e-9
 const SCORE_SCALE = 100
 
 const weightedMean = (pairs) => {
@@ -16,7 +16,9 @@ async function scoreAttempt(caseDef, attempt, ctx) {
   const counted = checks.filter((c) => c.pass !== null)
   if (!counted.length) return { ...attempt, checks, score: null, pass: null }
   const score = weightedMean(counted.map((c) => [c.score, c.weight]))
-  const pass = score >= (caseDef.threshold ?? DEFAULT_CASE_THRESHOLD) - 1e-9
+  // Without a threshold a case passes when every counted check passes. A model-judged check that
+  // passes with 0.9 still lowers the score, but does not fail the case.
+  const pass = caseDef.threshold === undefined ? counted.every((c) => c.pass) : score >= caseDef.threshold - SCORE_EPSILON
   return { ...attempt, checks, score: round(score, 4), pass }
 }
 
