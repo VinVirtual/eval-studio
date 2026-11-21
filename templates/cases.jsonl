@@ -1,0 +1,5 @@
+// One case per line. Lines that start with // are ignored. Replace these with questions real users ask.
+// Take every expected fact from your own documents. Tag the few cases that must never fail "must-pass".
+{"id": "returns-window", "input": "How long do I have to return an item?", "expected": "30 days, from the returns policy.", "tags": ["policy", "must-pass"], "checks": [{"type": "contains", "value": "30 days"}, {"type": "source", "id": "returns-policy"}]}
+{"id": "returns-short", "input": "Can I return something after two months?", "expected": "No. The window is 30 days.", "tags": ["policy", "edge"], "checks": [{"type": "contains", "value": "30 days"}, {"type": "max-length", "words": 60}]}
+{"id": "out-of-scope", "input": "What will the weather be tomorrow?", "expected": "A refusal: this is not in the documents.", "tags": ["refusal", "must-pass"], "checks": [{"type": "refusal"}]}
