@@ -1,0 +1,9 @@
+{
+  "name": "Tool library helper",
+  "cases": "cases.jsonl",
+  "target": { "type": "module", "path": "./bot.mjs", "export": "answer", "options": { "variant": "v2" } },
+  "run": { "concurrency": 4, "retries": 0, "timeoutMs": 5000, "repeat": 1 },
+  "baseline": "runs/001-baseline.json",
+  "gate": { "maxRegressions": 0, "mustPassTag": "must-pass" },
+  "judge": { "enabled": false }
+}
