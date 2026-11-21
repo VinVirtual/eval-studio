@@ -1,5 +1,6 @@
 // Adapters and the runner, against a local stub server. Nothing here calls a real service.
 import { test, after } from 'node:test'
+import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -140,6 +141,18 @@ test('runner: a call that takes too long is stopped and recorded as an error', a
   const started = Date.now()
   const [killed] = await runCases({ cases: [aCase()], adapter: sleeper, settings: { timeoutMs: 100, retries: 0 } })
   assert.ok(killed.attempts[0].error); assert.ok(Date.now() - started < 3000)
+})
+
+test('command target: a timeout stops the whole pipeline, not just the shell, and nothing is left running', async () => {
+  const marker = `sleep 7.${process.pid % 1000}`
+  const pipeline = createAdapter({ type: 'command', command: `${marker} | cat` })
+  const started = Date.now()
+  const [out] = await runCases({ cases: [aCase()], adapter: pipeline, settings: { timeoutMs: 200, retries: 0 } })
+  assert.match(out.attempts[0].error, /no answer within 200 ms|stopped/)
+  assert.ok(Date.now() - started < 3000, 'the call returned promptly')
+  await new Promise((r) => setTimeout(r, 300))
+  const left = spawnSync('pgrep', ['-f', marker], { encoding: 'utf8' }).stdout.trim()
+  assert.equal(left, '', `processes left running: ${left}`)
 })
 
 test('model judge: asks a local stub endpoint, reads the score, and never stores the key', async () => {

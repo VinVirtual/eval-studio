@@ -3,8 +3,14 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { shapeOutput } from './shape.mjs'
+import { envNames, expandEnv } from '../util.mjs'
 
-export function createModuleAdapter(target, { baseDir = process.cwd() } = {}) {
+/**
+ * The function gets an AbortSignal in context.signal. It should stop its work when the signal
+ * aborts (pass it on to fetch, for example): the runner gives up on a call at the timeout, but a
+ * function that ignores the signal keeps running in the background until it ends.
+ */
+export function createModuleAdapter(target, { baseDir = process.cwd(), env = process.env } = {}) {
   if (!target.path) throw new Error('a module target needs "path"')
   const file = resolve(baseDir, target.path)
   const exportName = target.export ?? 'default'
@@ -16,7 +22,7 @@ export function createModuleAdapter(target, { baseDir = process.cwd() } = {}) {
     return fn
   }
   return {
-    envNames: [],
+    envNames: envNames(target.options ?? {}),
     describe: () => ({ type: 'module', path: target.path, export: exportName }),
     probe: async () => {
       try { await load(); return { ok: true } } catch (e) { return { ok: false, reason: e.message } }
@@ -26,7 +32,7 @@ export function createModuleAdapter(target, { baseDir = process.cwd() } = {}) {
     async call(caseDef, { signal } = {}) {
       loaded ??= load()
       const fn = await loaded
-      const context = { id: caseDef.id, vars: caseDef.vars ?? {}, messages: caseDef.messages, options: target.options ?? {}, signal }
+      const context = { id: caseDef.id, vars: caseDef.vars ?? {}, messages: caseDef.messages, options: expandEnv(target.options ?? {}, env), signal }
       return shapeOutput(await fn(caseDef.input, context), target.response)
     },
   }
