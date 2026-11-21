@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { scoreRun, summarize, caseStatus } from '../engine/lib/score.mjs'
-import { compareRuns, failureReason, mustPassFailures } from '../engine/lib/compare.mjs'
+import { compareRuns, failureReason, mustPassFailures, standaloneGate, GATE_DEFAULTS } from '../engine/lib/compare.mjs'
 import { attempt } from './helpers.mjs'
 
 const has = (value) => ({ type: 'contains', value })
@@ -77,7 +77,54 @@ test('compare finds regressions, fixes, unchanged, new and removed cases', async
   assert.equal(cmp.regressions[0].reason, 'contains: missing "yes"'); assert.equal(cmp.regressions[0].scoreDelta, -1)
   assert.equal(cmp.score.base, 60); assert.equal(cmp.score.next, 60); assert.equal(cmp.score.delta, 0)
   assert.equal(cmp.gate.ok, false); assert.match(cmp.gate.reasons[0], /1 case got worse \(allowed: 0\): breaks/)
-  assert.equal(compareRuns(base, next, { maxRegressions: 1 }).gate.ok, true)
+  // the baseline case "gone" is missing, which fails the gate by default and names the id
+  assert.match(cmp.gate.reasons[1], /1 baseline case missing from this run.*--allow-removed\): gone/)
+  assert.equal(compareRuns(base, next, { maxRegressions: 1 }).gate.ok, false)
+  assert.equal(compareRuns(base, next, { maxRegressions: 1, allowRemoved: true }).gate.ok, true)
+})
+
+test('a new case that does not pass is a regression unless new failures are allowed', async () => {
+  const base = await scored('a', [stored('old', 'yes')])
+  const next = await scored('bb', [stored('old', 'yes'), stored('renamed-and-broken', 'no'), stored('new-ok', 'yes')])
+  const cmp = compareRuns(base, next)
+  assert.deepEqual(cmp.regressions.map((r) => [r.id, r.newCase]), [['renamed-and-broken', true]])
+  assert.match(cmp.gate.reasons[0], /renamed-and-broken \(new, fail\)/)
+  const allowed = compareRuns(base, next, { allowNewFailures: true })
+  assert.equal(allowed.regressions.length, 0); assert.equal(allowed.gate.ok, true)
+})
+
+test('a --tag run does not report the cases it was not asked to run as removed', async () => {
+  const base = await scored('a', [stored('fees-1', 'yes', { tags: ['fees'] }), stored('hours-1', 'yes', { tags: ['hours'] })])
+  const tagged = { ...(await scored('bb', [stored('fees-1', 'yes', { tags: ['fees'] })])), settings: { tags: ['fees'] } }
+  const cmp = compareRuns(base, tagged)
+  assert.deepEqual(cmp.removed, []); assert.deepEqual(cmp.notRun.map((r) => r.id), ['hours-1']); assert.equal(cmp.gate.ok, true)
+  assert.equal(cmp.score.delta, 0) // compared over the cases both runs asked
+  const untagged = compareRuns(base, await scored('bb', [stored('fees-1', 'yes', { tags: ['fees'] })]))
+  assert.deepEqual(untagged.removed.map((r) => r.id), ['hours-1']); assert.equal(untagged.gate.ok, false)
+})
+
+test('the score drop rule is on by default', async () => {
+  assert.equal(GATE_DEFAULTS.maxScoreDrop, 5)
+  const base = await scored('a', [stored('p', 'yes', { threshold: 0.5, checks: [has('yes'), has('y')] })])
+  const next = await scored('bb', [stored('p', 'yes', { threshold: 0.5, checks: [has('yes'), has('zzz')] })])
+  const cmp = compareRuns(base, next)
+  assert.equal(cmp.regressions.length, 0); assert.match(cmp.gate.reasons[0], /fell by 50 points \(allowed: 5\)/)
+  assert.equal(compareRuns(base, next, { maxScoreDrop: null }).gate.ok, true)
+})
+
+test('with no baseline the gate fails on errors, on a run that answered nothing, and on skipped must-pass cases', async () => {
+  const allErrors = await scored('a', [stored('x', [attempt('', { error: 'connection refused' })]), stored('y', [attempt('', { error: 'connection refused' })])])
+  const verdict = standaloneGate(allErrors)
+  assert.equal(verdict.ok, false)
+  assert.match(verdict.reasons[0], /no case got an answer/); assert.match(verdict.reasons[1], /2 cases got no answer because of an error \(allowed: 0\): x, y/)
+  const oneError = await scored('a', [stored('x', 'yes'), stored('y', [attempt('', { error: 'timeout' })])])
+  assert.deepEqual(standaloneGate(oneError).reasons.length, 1); assert.equal(standaloneGate(oneError, { maxErrors: 1 }).ok, true)
+  const empty = await scored('a', [stored('x', '')])
+  assert.match(standaloneGate(empty).reasons[0], /no case got an answer/)
+  const skippedMust = await scored('a', [stored('m', 'yes', { tags: ['must-pass'], checks: [{ type: 'judge', rubric: 'r' }] })])
+  assert.equal(skippedMust.cases[0].status, 'skipped')
+  assert.deepEqual(mustPassFailures(skippedMust), ['m']); assert.equal(standaloneGate(skippedMust).ok, false)
+  assert.equal(standaloneGate(await scored('a', [stored('ok', 'yes')])).ok, true)
 })
 
 test('a case that turns flaky or errors counts as a regression; a skipped case does not', async () => {
@@ -97,5 +144,5 @@ test('the gate also watches score drop, latency rise and must-pass cases', async
   assert.equal(cmp.gate.reasons.length, 3)
   assert.match(cmp.gate.reasons[0], /fell by 25 points/); assert.match(cmp.gate.reasons[1], /rose by 80%/); assert.match(cmp.gate.reasons[2], /"must-pass" case not passing: m/)
   assert.deepEqual(mustPassFailures(next), ['m']); assert.deepEqual(mustPassFailures(next, 'other'), [])
-  assert.equal(compareRuns(base, next, { mustPassTag: 'none' }).gate.ok, true)
+  assert.equal(compareRuns(base, next, { mustPassTag: 'none', maxScoreDrop: 30 }).gate.ok, true)
 })

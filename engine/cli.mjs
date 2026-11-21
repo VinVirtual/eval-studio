@@ -4,21 +4,24 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, statSync, mkdirSync, copyFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseArgs, intFlag, numFlag, UsageError } from './lib/util.mjs'
-import { loadProject, newRun, saveRun, findRun, findBaseline, listRuns, CONFIG_NAME } from './lib/project.mjs'
+import { parseArgs, intFlag, numFlag, requireValues, UsageError } from './lib/util.mjs'
+import { loadProject, newRun, saveRun, findRun, findBaseline, listRuns, checkRunId, freeRunId, CONFIG_NAME } from './lib/project.mjs'
 import { loadCases, filterByTags, toJsonl } from './lib/cases.mjs'
 import { lintCases, lintTarget, formatIssues, countLevel } from './lib/lint.mjs'
 import { createAdapter } from './lib/adapters/index.mjs'
 import { createJudge } from './lib/checks/judge.mjs'
 import { runCases } from './lib/run.mjs'
 import { scoreRun } from './lib/score.mjs'
-import { compareRuns, mustPassFailures } from './lib/compare.mjs'
+import { compareRuns, standaloneGate } from './lib/compare.mjs'
 import { buildReportData, renderReport } from './lib/report.mjs'
 import { redactDeep, secretValues } from './lib/redact.mjs'
 
 const SKILL = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const MIN_NODE_MAJOR = 18
 const EXIT = { ok: 0, failed: 1, usage: 2 }
+// After a command finishes, anything still running (a module target that ignored its abort signal)
+// gets this long before the process exits anyway.
+const EXIT_GRACE_MS = 2000
 
 const HELP = `eval-studio: test a chatbot, a retrieval system or an agent with cases, checks and a report.
 
@@ -28,7 +31,7 @@ const HELP = `eval-studio: test a chatbot, a retrieval system or an agent with c
   evals lint [dir]                  check the cases and the target before running   [--offline] [--strict] [--json]
   evals run [dir]                   ask the target every case and save a run file   [--label L] [--repeat N] [--tag T]
   evals score [run]                 apply the checks to a run (default: the newest)   [--judge]
-  evals compare [base] [new]        what got worse, what was fixed; exits 1 when the gate fails
+  evals compare [dir] [base] [new]  what got worse, what was fixed; exits 1 when the gate fails
   evals report [run]                write report.html (one file, no network)   [--baseline R] [--out FILE]
   evals baseline [run]              copy a scored run to the baseline file named in the config
   evals build [dir]                 lint + run + score + compare + report; exits 1 when the gate fails
@@ -38,14 +41,18 @@ A project is the current folder, the [dir] given, or --dir <dir>. A run is a fil
 
 options
   --config FILE              config file inside the project (default ${CONFIG_NAME})
-  --label L, --id ID         name the run; --id sets the file name too
+  --label L, --id ID         name the run; --id sets the file name (letters, digits, . _ -)
+  --force                    run: replace an existing run with the same --id
   --repeat N                 ask every case N times, to see answers that change between runs
   --concurrency N            cases asked at once          --retries N       tries after a failed call
   --timeout MS               time allowed per call        --tag T           only cases with this tag (repeatable with commas)
   --judge                    turn on model-judged checks for this command (they are off by default)
   --max-regressions N        gate: cases allowed to get worse (default 0)
-  --max-score-drop P         gate: points the score may fall
+  --max-score-drop P         gate: points the score may fall (default 5)
   --max-latency-increase P   gate: percent the median latency may rise
+  --max-errors N             gate: cases allowed to get no answer (default 0)
+  --allow-removed            gate: baseline cases missing from this run do not fail it
+  --allow-new-failures       gate: new cases that fail do not count as regressions
   --no-gate                  build: write the report but always exit 0
 `
 
@@ -56,11 +63,20 @@ const isDir = (path) => existsSync(path) && statSync(path).isDirectory()
 const shown = (file) => relative(process.cwd(), file) || '.'
 const fmtMs = (ms) => (ms === null || ms === undefined ? 'n/a' : `${ms} ms`)
 
-/** The project folder: --dir, or a first argument that is a folder, or the current folder. */
-function openProject(rest, flags) {
-  const fromArg = rest[0] !== undefined && isDir(rest[0])
-  const project = loadProject(flags.dir ?? (fromArg ? rest[0] : '.'), flags)
-  return { project, rest: fromArg ? rest.slice(1) : rest }
+/**
+ * The project folder: --dir, or the first argument, or the current folder. maxRefs is how many run
+ * names the command takes after the folder. When there are more arguments than that, the first
+ * one must be a folder that exists; a typo is an error, never a silent fallback to ".".
+ */
+function openProject(rest, flags, maxRefs = 0) {
+  if (flags.dir !== undefined) {
+    if (rest.length > maxRefs) throw new UsageError(`too many arguments: ${rest.join(' ')}`)
+    return { project: loadProject(flags.dir, flags), rest }
+  }
+  if (rest.length > maxRefs + 1) throw new UsageError(`too many arguments: ${rest.join(' ')}`)
+  const folderGiven = rest.length > maxRefs || (rest[0] !== undefined && isDir(rest[0]))
+  if (folderGiven && !isDir(rest[0])) throw new UsageError(`folder not found: ${rest[0]}`)
+  return { project: loadProject(folderGiven ? rest[0] : '.', flags), rest: folderGiven ? rest.slice(1) : rest }
 }
 
 function gateOptions(project, flags) {
@@ -69,6 +85,9 @@ function gateOptions(project, flags) {
     maxRegressions: intFlag(flags, 'max-regressions', project.gate.maxRegressions),
     maxScoreDrop: numFlag(flags, 'max-score-drop', project.gate.maxScoreDrop),
     maxLatencyIncreasePct: numFlag(flags, 'max-latency-increase', project.gate.maxLatencyIncreasePct),
+    maxErrors: intFlag(flags, 'max-errors', project.gate.maxErrors),
+    allowRemoved: Boolean(flags['allow-removed'] || project.gate.allowRemoved),
+    allowNewFailures: Boolean(flags['allow-new-failures'] || project.gate.allowNewFailures),
   }
 }
 
@@ -79,6 +98,7 @@ function runSettings(project, flags) {
     retries: intFlag(flags, 'retries', project.runSettings.retries, 0, 10),
     timeoutMs: intFlag(flags, 'timeout', project.runSettings.timeoutMs, 1),
     repeat: intFlag(flags, 'repeat', project.runSettings.repeat, 1, 100),
+    tags: flags.tag ? String(flags.tag).split(',').map((t) => t.trim()).filter(Boolean) : undefined,
   }
 }
 
@@ -87,7 +107,7 @@ function tryAdapter(project) {
 }
 
 /** Everything that must never reach a file: values of the variables the config names, and secret-looking ones. */
-function secretsFor(project, adapter) {
+function secretsFor(project, adapter = tryAdapter(project).adapter) {
   return secretValues(process.env, [...(adapter?.envNames ?? []), project.judge.apiKeyEnv].filter(Boolean))
 }
 
@@ -98,7 +118,9 @@ function cmdCheck(rest, flags) {
   let ok = major >= MIN_NODE_MAJOR && typeof fetch === 'function'
   say(`${major >= MIN_NODE_MAJOR ? 'ok  ' : 'FAIL'} node ${process.versions.node} (needs ${MIN_NODE_MAJOR} or newer)`)
   say(`${typeof fetch === 'function' ? 'ok  ' : 'FAIL'} fetch is built in`)
+  if (rest.length > 1) throw new UsageError(`too many arguments: ${rest.join(' ')}`)
   const dir = flags.dir ?? rest[0] ?? '.'
+  if (!isDir(dir)) throw new UsageError(`folder not found: ${dir}`)
   if (!existsSync(resolve(dir, flags.config ?? CONFIG_NAME))) {
     say(`note no ${CONFIG_NAME} in ${shown(resolve(dir))}; start a project with: evals new <dir>`)
     return ok ? EXIT.ok : EXIT.failed
@@ -166,11 +188,13 @@ async function cmdLint(rest, flags) {
 }
 
 async function doRun(project, flags) {
-  const all = loadCases(project.casesFile).cases
-  const cases = filterByTags(all, flags.tag ? String(flags.tag).split(',') : null)
-  if (!cases.length) throw new UsageError(flags.tag ? `no case has the tag "${flags.tag}"` : 'there are no cases to run')
-  const adapter = createAdapter(project.target, { baseDir: project.dir })
   const settings = runSettings(project, flags)
+  const all = loadCases(project.casesFile).cases
+  const cases = filterByTags(all, settings.tags)
+  if (!cases.length) throw new UsageError(settings.tags ? `no case has the tag "${settings.tags.join(', ')}"` : 'there are no cases to run')
+  const chosenId = flags.id === undefined ? undefined : checkRunId(String(flags.id))
+  if (chosenId) freeRunId(project, chosenId, { chosen: true, overwrite: Boolean(flags.force) })
+  const adapter = createAdapter(project.target, { baseDir: project.dir })
   const total = cases.length * settings.repeat
   await adapter.warm?.()
   note(`running ${cases.length} case(s)${settings.repeat > 1 ? ` x ${settings.repeat}` : ''} against the ${project.target.type} target, ${settings.concurrency} at a time`)
@@ -178,26 +202,37 @@ async function doRun(project, flags) {
     cases, adapter, settings,
     onAttempt: ({ caseDef, attempt, done }) => { if (!flags.quiet) note(`  ${String(done).padStart(String(total).length)}/${total} ${attempt.error ? 'ERROR' : 'ok   '} ${caseDef.id} (${attempt.latencyMs} ms)${attempt.error ? `: ${attempt.error}` : ''}`) },
   })
-  const label = typeof flags.label === 'string' ? flags.label : undefined
-  const id = typeof flags.id === 'string' ? flags.id : undefined
-  const run = newRun({ project, id, label, date: new Date(), target: adapter.describe(), settings, cases: results })
-  const clean = redactDeep(run, secretsFor(project, adapter))
-  return { run: clean, file: saveRun(project, clean) }
+  const label = flags.label === undefined ? undefined : String(flags.label)
+  const draft = newRun({ project, id: chosenId, label, date: new Date(), target: adapter.describe(), settings, cases: results })
+  const run = { ...draft, id: freeRunId(project, draft.id, { chosen: Boolean(chosenId), overwrite: Boolean(flags.force) }) }
+  // Checks score the raw answers kept in memory; only the copy written to disk is redacted.
+  const secrets = secretsFor(project, adapter)
+  return { run, secrets, file: saveRun(project, redactDeep(run, secrets)) }
 }
+
+const answeredNothing = (run) => run.cases.every((c) => c.attempts.every((a) => a.error))
 
 async function cmdRun(rest, flags) {
   const { project } = openProject(rest, flags)
   const { run, file } = await doRun(project, flags)
   const errors = run.cases.filter((c) => c.attempts.every((a) => a.error)).length
   say(`saved ${shown(file)} (${run.cases.length} cases, ${errors} could not be answered). Next: evals score`)
+  if (answeredNothing(run)) {
+    note('evals: the target did not answer a single case; check that it is running and the config is right')
+    return EXIT.failed
+  }
   return EXIT.ok
 }
 
-async function doScore(project, run, file, flags) {
+/**
+ * Scores the run as given (raw answers when it comes straight from doRun; a run read from disk was
+ * already redacted when it was saved), writes a redacted copy, and returns the scored run.
+ */
+async function doScore(project, run, file, flags, secrets = secretsFor(project)) {
   const judge = createJudge(project.judge, { force: Boolean(flags.judge) })
   const current = flags.frozen || !existsSync(project.casesFile) ? [] : loadCases(project.casesFile).cases
-  const scored = redactDeep(await scoreRun(run, current, { judge, secrets: secretsFor(project) }), secretsFor(project))
-  writeFileSync(file, JSON.stringify(scored, null, 2) + '\n')
+  const scored = await scoreRun(run, current, { judge, secrets })
+  writeFileSync(file, JSON.stringify(redactDeep(scored, secrets), null, 2) + '\n')
   return scored
 }
 
@@ -208,7 +243,7 @@ function printSummary(run) {
 }
 
 async function cmdScore(rest, flags) {
-  const { project, rest: args } = openProject(rest, flags)
+  const { project, rest: args } = openProject(rest, flags, 1)
   const { run, file } = findRun(project, args[0])
   const scored = await doScore(project, run, file, flags)
   say(`scored ${shown(file)}`)
@@ -233,18 +268,19 @@ function printComparison(cmp) {
   say(`  latency    median ${fmtMs(cmp.latency.base)} -> ${fmtMs(cmp.latency.next)}`)
   say(`  unchanged  ${cmp.unchanged.pass} still passing, ${cmp.unchanged.fail} still failing`)
   say(`  got worse  ${cmp.regressions.length}`)
-  for (const r of cmp.regressions) say(`    ${r.id}: ${r.baseStatus} -> ${r.newStatus}  ${r.reason}`)
+  for (const r of cmp.regressions) say(`    ${r.id}: ${r.newCase ? 'new' : r.baseStatus} -> ${r.newStatus}  ${r.reason}`)
   say(`  fixed      ${cmp.fixes.length}`)
   for (const r of cmp.fixes) say(`    ${r.id}: ${r.baseStatus} -> ${r.newStatus}`)
   if (cmp.added.length) say(`  new        ${cmp.added.map((r) => r.id).join(', ')}`)
-  if (cmp.removed.length) say(`  removed    ${cmp.removed.map((r) => r.id).join(', ')}`)
+  if (cmp.removed.length) say(`  missing    ${cmp.removed.map((r) => r.id).join(', ')}  (in the baseline, not in this run)`)
+  if (cmp.notRun.length) say(`  not run    ${cmp.notRun.length} baseline case(s) outside the tags of this run`)
   say(cmp.gate.ok ? 'gate: passed' : `gate: FAILED\n${cmp.gate.reasons.map((r) => `  ${r}`).join('\n')}`)
 }
 
 function cmdCompare(rest, flags) {
-  const project = loadProject(flags.dir ?? '.', flags)
-  const next = rest.length >= 2 ? findRun(project, rest[1]) : findRun(project)
-  const base = findBaseline(project, next.run, rest[0])
+  const { project, rest: refs } = openProject(rest, flags, 2)
+  const next = refs.length >= 2 ? findRun(project, refs[1]) : findRun(project)
+  const base = findBaseline(project, next.run, refs[0])
   if (!base) throw new UsageError('there is no earlier run to compare with. Name one, or set "baseline" in the config.')
   const cmp = compareRuns(needScored(base.run, base.file), needScored(next.run, next.file), gateOptions(project, flags))
   if (flags.json) say(JSON.stringify(cmp, null, 2))
@@ -263,7 +299,7 @@ function writeReport(project, run, base, flags) {
 }
 
 function cmdReport(rest, flags) {
-  const { project, rest: args } = openProject(rest, flags)
+  const { project, rest: args } = openProject(rest, flags, 1)
   const next = findRun(project, args[0])
   const base = findBaseline(project, next.run, typeof flags.baseline === 'string' ? flags.baseline : undefined)
   const { out } = writeReport(project, needScored(next.run, next.file), base ? needScored(base.run, base.file) : null, flags)
@@ -272,7 +308,7 @@ function cmdReport(rest, flags) {
 }
 
 function cmdBaseline(rest, flags) {
-  const { project, rest: args } = openProject(rest, flags)
+  const { project, rest: args } = openProject(rest, flags, 1)
   if (!project.baselineFile) throw new UsageError(`set "baseline" in ${CONFIG_NAME} first, for example "baseline": "baseline.json"`)
   const { run, file } = findRun(project, args[0])
   mkdirSync(dirname(project.baselineFile), { recursive: true })
@@ -290,7 +326,7 @@ async function cmdBuild(rest, flags) {
     return EXIT.failed
   }
   const made = await doRun(project, flags)
-  const run = await doScore(project, made.run, made.file, flags)
+  const run = await doScore(project, made.run, made.file, flags, made.secrets)
   say(`run ${shown(made.file)}`)
   printSummary(run)
   const base = findBaseline(project, run, typeof flags.baseline === 'string' ? flags.baseline : undefined)
@@ -300,9 +336,9 @@ async function cmdBuild(rest, flags) {
     printComparison(comparison)
     ok = comparison.gate.ok
   } else {
-    const broken = mustPassFailures(run, project.gate.mustPassTag)
-    ok = broken.length === 0
-    say(`no earlier run to compare with. ${ok ? 'gate: passed' : `gate: FAILED\n  "${project.gate.mustPassTag}" cases not passing: ${broken.join(', ')}`}`)
+    const verdict = standaloneGate(run, gateOptions(project, flags))
+    ok = verdict.ok
+    say(`no earlier run to compare with. ${ok ? 'gate: passed' : `gate: FAILED\n${verdict.reasons.map((r) => `  ${r}`).join('\n')}`}`)
   }
   say(`report ${shown(out)}`)
   return ok || flags['no-gate'] ? EXIT.ok : EXIT.failed
@@ -317,13 +353,18 @@ const COMMANDS = { check: cmdCheck, new: cmdNew, import: cmdImport, lint: cmdLin
 
 async function main() {
   const { rest, flags } = parseArgs(process.argv.slice(2))
+  requireValues(flags)
   const [command, ...args] = rest
   if (!command || command === 'help' || flags.help) { say(HELP); return EXIT.ok }
   if (!COMMANDS[command]) throw new UsageError(`unknown command "${command}". Run: evals help`)
   return COMMANDS[command](args, flags)
 }
 
-main().then((code) => { process.exitCode = code }, (e) => {
+const leave = (code) => {
+  process.exitCode = code
+  setTimeout(() => process.exit(code), EXIT_GRACE_MS).unref()
+}
+main().then(leave, (e) => {
   note(e instanceof UsageError ? `evals: ${e.message}` : `evals: ${e.stack ?? e}`)
-  process.exitCode = e instanceof UsageError ? EXIT.usage : EXIT.failed
+  leave(e instanceof UsageError ? EXIT.usage : EXIT.failed)
 })

@@ -4,6 +4,6 @@
   "target": { "type": "module", "path": "./target.mjs", "export": "answer" },
   "run": { "concurrency": 4, "retries": 1, "timeoutMs": 30000, "repeat": 1 },
   "baseline": "baseline.json",
-  "gate": { "maxRegressions": 0, "mustPassTag": "must-pass" },
+  "gate": { "maxRegressions": 0, "maxScoreDrop": 5, "maxErrors": 0, "allowRemoved": false, "allowNewFailures": false, "mustPassTag": "must-pass" },
   "judge": { "enabled": false, "baseUrl": "http://localhost:11434/v1", "model": "your-judge-model", "apiKeyEnv": "" }
 }

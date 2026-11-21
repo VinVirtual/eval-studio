@@ -14,6 +14,7 @@ function readJson(file, what) {
 
 export function loadProject(dir = '.', flags = {}) {
   const root = resolve(dir)
+  if (!existsSync(root) || !statSync(root).isDirectory()) throw new UsageError(`folder not found: ${dir}`)
   const file = resolve(root, flags.config ?? CONFIG_NAME)
   if (!existsSync(file)) throw new UsageError(`no ${basename(file)} in ${root}. Start a project with: evals new <dir>`)
   const config = readJson(file, 'the config')
@@ -50,15 +51,39 @@ export function newRun({ project, id, label, date, target, settings, cases }) {
     name: project.name,
     createdAt: date.toISOString(),
     target,
-    settings: { concurrency: settings.concurrency, retries: settings.retries, timeoutMs: settings.timeoutMs, repeat: settings.repeat },
+    settings: { concurrency: settings.concurrency, retries: settings.retries, timeoutMs: settings.timeoutMs, repeat: settings.repeat, ...(settings.tags?.length ? { tags: settings.tags } : {}) },
     scored: false,
     cases,
   }
 }
 
+const SAFE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/
+
+/** A run id chosen with --id must be a plain file name: no folders, no "..". */
+export function checkRunId(id) {
+  if (!SAFE_RUN_ID.test(id) || id.includes('..')) throw new UsageError(`--id "${id}" is not allowed: use letters, digits, dot, dash and underscore (no folders), at most 100 characters`)
+  return id
+}
+
+export const runFile = (project, id) => join(project.runsDir, `${id}.json`)
+
+/**
+ * The id to save a new run under. A chosen id that is taken is an error unless overwrite is set;
+ * a generated id that is taken (two runs in the same second) gets -2, -3, ...
+ */
+export function freeRunId(project, id, { chosen = false, overwrite = false } = {}) {
+  if (chosen) {
+    if (existsSync(runFile(project, id)) && !overwrite) throw new UsageError(`a run called "${id}" already exists in ${project.runsDir}; pick another --id or add --force to replace it`)
+    return id
+  }
+  let candidate = id
+  for (let n = 2; existsSync(runFile(project, candidate)); n++) candidate = `${id}-${n}`
+  return candidate
+}
+
 export function saveRun(project, run) {
   mkdirSync(project.runsDir, { recursive: true })
-  const file = join(project.runsDir, `${run.id}.json`)
+  const file = runFile(project, checkRunId(run.id))
   writeFileSync(file, JSON.stringify(run, null, 2) + '\n')
   return file
 }
@@ -92,7 +117,7 @@ export function findRun(project, ref) {
     if (existsSync(candidate) && statSync(candidate).isFile()) return { file: candidate, run: loadRun(candidate) }
   }
   const match = runs.filter(({ run }) => run.id === ref || run.label === ref).at(-1)
-  if (!match) throw new UsageError(`no run called "${ref}" (looked for a file, a run id and a label)`)
+  if (!match) throw new UsageError(`no run called "${ref}" (it is not a project folder, a run file, a run id or a label)`)
   return match
 }
 

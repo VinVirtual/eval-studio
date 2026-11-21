@@ -15,7 +15,10 @@ const PATTERNS = [
   /\bAIza[0-9A-Za-z_-]{30,}/g,
 ]
 const BEARER = /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{12,}/g
-const ASSIGNMENT = /\b((?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|passwd|token)["']?\s*[:=]\s*["']?)([^\s"',;&]{8,})/gi
+// "api_key=...", "password": "...". The value must look like a credential (no spaces, at least 8
+// characters with a digit, or 20 or more characters), so prose such as "Password: required" is kept.
+const ASSIGNMENT = /\b((?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?key|secret|password|passwd|token)["']?[ \t]*[:=][ \t]*["']?)([A-Za-z0-9._~+/=!@#$%^*-]{8,})/gi
+const LOOKS_LIKE_CREDENTIAL = /^(?=.*\d)[^\s]{8,}$|^[^\s]{20,}$/
 const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)([^\s/@]+)(@)/gi
 const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL/i
 const MIN_SECRET_LENGTH = 8
@@ -35,7 +38,7 @@ export function redactText(text, secrets = []) {
   for (const pattern of PATTERNS) out = out.replace(pattern, MASK)
   return out
     .replace(BEARER, `$1 ${MASK}`)
-    .replace(ASSIGNMENT, `$1${MASK}`)
+    .replace(ASSIGNMENT, (whole, name, value) => (LOOKS_LIKE_CREDENTIAL.test(value) ? `${name}${MASK}` : whole))
     .replace(URL_CREDENTIALS, `$1${MASK}$3`)
 }
 

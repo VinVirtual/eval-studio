@@ -27,6 +27,13 @@ test('authorization headers, key=value pairs and URL passwords are masked, the r
   assert.equal(redactText('token count: 12'), 'token count: 12')
 })
 
+test('words such as password or secret in ordinary sentences are not masked', () => {
+  for (const text of ['The password: must be at least 8 characters.', 'Your secret: everything is fine', 'token: expired', 'Password = required for login', 'The api key: ask the front desk'])
+    assert.equal(redactText(text), text)
+  assert.equal(redactText('token: abcdefghijklmnopqrstuvwxyz'), `token: ${MASK}`)
+  assert.equal(redactText('secret=Zx81kq0pL'), `secret=${MASK}`)
+})
+
 test('private key blocks are masked whole', () => {
   const block = '-----BEGIN RSA PRIVATE KEY-----\nMIIabc\ndef\n-----END RSA PRIVATE KEY-----'
   assert.equal(redactText(`key:\n${block}\nend`), `key:\n${MASK}\nend`)

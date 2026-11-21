@@ -90,7 +90,16 @@ export async function mapLimit(items, limit, fn) {
   return results
 }
 
-const BOOLEAN_FLAGS = new Set(['judge', 'json', 'strict', 'offline', 'frozen', 'help', 'no-compare', 'no-gate', 'quiet'])
+export const BOOLEAN_FLAGS = new Set(['judge', 'json', 'strict', 'offline', 'frozen', 'help', 'no-gate', 'quiet', 'force', 'allow-removed', 'allow-new-failures'])
+
+/** Every flag that is not a switch takes a value; "--label" alone, or "--label --quiet", is a mistake. */
+export function requireValues(flags) {
+  for (const [key, value] of Object.entries(flags)) {
+    if (!BOOLEAN_FLAGS.has(key) && (value === true || value === '')) throw new UsageError(`--${key} needs a value`)
+    if (BOOLEAN_FLAGS.has(key) && value !== true) throw new UsageError(`--${key} is a switch and takes no value`)
+  }
+  return flags
+}
 
 /** parseArgs(['run', 'dir', '--repeat', '3', '--judge']) -> { rest: ['run', 'dir'], flags: { repeat: '3', judge: true } } */
 export function parseArgs(argv) {
@@ -98,13 +107,13 @@ export function parseArgs(argv) {
   const flags = {}
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '-C') flags.dir = argv[++i]
+    if (arg === '-C') flags.dir = argv[i + 1] === undefined || argv[i + 1].startsWith('-') ? true : argv[++i]
     else if (arg === '-h') flags.help = true
     else if (arg.startsWith('--')) {
       const eq = arg.indexOf('=')
       const key = eq < 0 ? arg.slice(2) : arg.slice(2, eq)
-      if (eq >= 0) flags[key] = arg.slice(eq + 1)
-      else if (BOOLEAN_FLAGS.has(key) || argv[i + 1] === undefined || argv[i + 1].startsWith('--')) flags[key] = true
+      if (eq >= 0) flags[key] = BOOLEAN_FLAGS.has(key) && /^(true|1)$/.test(arg.slice(eq + 1)) ? true : arg.slice(eq + 1)
+      else if (BOOLEAN_FLAGS.has(key) || argv[i + 1] === undefined || argv[i + 1].startsWith('-')) flags[key] = true
       else flags[key] = argv[++i]
     } else rest.push(arg)
   }
@@ -114,6 +123,7 @@ export function parseArgs(argv) {
 /** A whole-number flag inside [min, max], or the fallback when the flag is absent. */
 export function intFlag(flags, key, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
   if (flags[key] === undefined) return fallback
+  if (flags[key] === true || flags[key] === '') throw new UsageError(`--${key} needs a value`)
   const n = Number(flags[key])
   if (!Number.isInteger(n) || n < min || n > max) throw new UsageError(`--${key} must be a whole number from ${min} to ${max}`)
   return n
@@ -121,6 +131,7 @@ export function intFlag(flags, key, fallback, min = 0, max = Number.MAX_SAFE_INT
 
 export function numFlag(flags, key, fallback) {
   if (flags[key] === undefined) return fallback
+  if (flags[key] === true || flags[key] === '') throw new UsageError(`--${key} needs a value`)
   const n = Number(flags[key])
   if (!Number.isFinite(n)) throw new UsageError(`--${key} must be a number`)
   return n
