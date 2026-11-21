@@ -1,0 +1,11 @@
+{
+  "name": "eval-studio",
+  "version": "0.1.0",
+  "description": "Test a chatbot, a retrieval system or an agent the way software is tested: cases, checks, comparison with the last run, and a report page.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Lashvin Manimaran",
+  "bin": { "evals": "engine/cli.mjs" },
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node engine/cli.mjs test" }
+}
