@@ -1,42 +1,74 @@
-# Example GitHub Actions workflow: run the evals on every pull request and fail the check when
-# a case that passed in the committed baseline stops passing.
+# Example GitHub Actions workflow: run the evals on every pull request and fail the check when a
+# case that passed in the committed baseline stops passing.
 # Copy to .github/workflows/evals.yml in your repository and adjust the paths.
 #
-# The baseline is a scored run committed to the repository (evals baseline <run> writes it).
-# Keys come from repository secrets; eval-studio reads them from the environment only and masks
-# them in the run file and the report.
+# Before it is useful:
+# - Commit a baseline. Run `evals build` until the results are understood, then `evals baseline`
+#   writes the file named by "baseline" in evals.config.json; commit it. Without a baseline the
+#   gate can only check must-pass cases and errors, so regressions go unnoticed.
+# - Pin eval-studio. EVAL_STUDIO_REF below is a release tag or, safer, a full 40-character commit
+#   SHA (a tag can be moved, a commit cannot). Find one with:
+#     git ls-remote https://github.com/VinVirtual/eval-studio
+#   Update it on purpose, in its own pull request, like any other dependency.
+# - The actions are pinned to commit SHAs with the release in a comment. Dependabot or Renovate
+#   can keep them current.
+#
+# Secrets and forks: pull requests from forks do not receive repository secrets (GitHub withholds
+# them so a fork cannot read them). A target that needs a key then fails with "not set", and the
+# gate fails. Either run this only for branches in the same repository (the `if:` below), or use a
+# target that needs no key for fork pull requests. Do not switch to pull_request_target to get
+# secrets: it runs with the base repository's secrets on code from the fork.
 name: evals
 
 on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  EVAL_STUDIO_REF: v0.1.0   # a tag, or better a full commit SHA; see the note above
+
 jobs:
   evals:
+    # skip pull requests from forks, which get no secrets (remove if your target needs no key)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
-      - name: Get eval-studio
-        run: git clone --depth 1 https://github.com/VinVirtual/eval-studio "$RUNNER_TEMP/eval-studio"
+      - name: Get eval-studio at the pinned version
+        run: |
+          git init -q "$RUNNER_TEMP/eval-studio"
+          git -C "$RUNNER_TEMP/eval-studio" fetch -q --depth 1 https://github.com/VinVirtual/eval-studio "$EVAL_STUDIO_REF"
+          git -C "$RUNNER_TEMP/eval-studio" checkout -q FETCH_HEAD
+
+      - name: A baseline must be committed
+        working-directory: evals          # the folder with evals.config.json
+        run: |
+          baseline=$(node -e 'console.log(require("./evals.config.json").baseline || "")')
+          if [ -z "$baseline" ] || [ ! -f "$baseline" ]; then
+            echo "::error::No committed baseline. Run 'evals build' and 'evals baseline' locally and commit the file." && exit 1
+          fi
 
       # Start your system here if the target is an HTTP endpoint, for example:
-      # - run: npm ci && (npm start &) && npx wait-on http://localhost:3000/health
+      # - run: npm ci && (npm start &) && npx --no-install wait-on http://localhost:3000/health
 
       - name: Run, score, compare with the baseline, write the report
-        working-directory: evals          # the folder with evals.config.json
+        working-directory: evals
         env:
           BOT_API_KEY: ${{ secrets.BOT_API_KEY }}   # only if the target needs one
         run: node "$RUNNER_TEMP/eval-studio/engine/cli.mjs" build --label "pr-${{ github.event.pull_request.number || github.run_number }}"
 
       - name: Keep the report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eval-report
           path: |

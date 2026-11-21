@@ -12,7 +12,7 @@ It is packaged as a [Claude Code](https://claude.com/claude-code) skill (`SKILL.
 - **Running**: several cases at once, retries, a timeout per call, and `--repeat N` to ask every case several times and catch answers that change. It records the answer, the retrieved sources, the tool calls, the latency, and tokens and cost when the target reports them.
 - **Checks**: contains and not-contains, regex, exact, JSON shape and values, a number within a tolerance, "must retrieve or cite source X" (with its rank), "must call tool X with arguments like Y", "must not call tool Z", refusal expected (or not), max latency, max length. Weights per check and per case, tags per case.
 - **Model-judged check (optional)**: a rubric scored by a model you configure, through any OpenAI-compatible endpoint. Off by default, and labelled "model-judged" wherever its results appear.
-- **Comparison**: regressions (passed before, not now), fixes, unchanged, new and removed cases, score and latency changes. A gate for CI exits non-zero when more cases got worse than allowed, when the score fell too far, when latency rose too much, or when a `must-pass` case fails.
+- **Comparison**: regressions (passed before, not now, plus new cases that fail), fixes, unchanged, new and missing cases, score and latency changes. A gate for CI exits non-zero when a case got worse, when a baseline case is missing from the run (renamed or deleted), when the score fell more than 5 points, when latency rose too much (if set), when the target gave no answer to a case, or when a `must-pass` case did not pass (skipped counts as not passing). The no-answer and must-pass rules apply even to a first run with no baseline.
 - **Report**: one HTML file with no network access. It has a summary, a trend across saved runs, filters by status and tag, a search, and for each case the question, the expected facts, the answer next to the baseline's answer with changed words marked, every check with its result (and what it was before), the retrieved passages with their rank, and the tool trace. Light and dark themes, readable on a phone.
 - **Cases** in JSONL or JSON, plus CSV import from a spreadsheet.
 - **Secrets** are masked before anything is saved: the values of key-like environment variables, common key formats, `Bearer` tokens, `password=` pairs, and passwords in URLs.
@@ -26,7 +26,9 @@ Read these before trusting a green report.
 - **Passing cases do not prove the bot is correct in general.** They show that these questions, scored by these checks, pass today. Coverage is only as good as the cases.
 - **It does not generate test cases from nothing.** You (or the assistant, with you) write them from real questions and your own documents. The skill's instructions forbid inventing expected facts.
 - Answers vary from run to run. A single case flipping once is weak evidence; use `--repeat`.
-- Redaction catches obvious secrets, not every secret. Do not put private customer data in cases or reports you share.
+- Redaction catches obvious secrets, not every secret. Checks in `build` see the raw answers; `score` on a saved run sees the redacted text.
+- Regex patterns with a repeated group that itself repeats are refused, and every regex check is stopped after 1 second. Number checks do not understand decimal commas.
+- A module target that ignores its abort signal keeps running after its timeout until the command exits. Do not put private customer data in cases or reports you share.
 - Tested on Linux only (Node 24). It uses nothing platform-specific beyond `sh` for command targets, but macOS and Windows have not been tested.
 
 ## Requirements
@@ -86,25 +88,27 @@ cd ~/.claude/skills/eval-studio/examples/tool-library
 | `evals new <dir>` | starts a project from the templates |
 | `evals import <file.csv> [out.jsonl]` | turns a CSV into cases. Columns: `id`, `input` (or `question`), `expected`, `tags`, `weight`, `contains` (`a\|b` for all), `contains_any`, `not_contains`, `regex`, `exact`, `number`, `tolerance`, `source` (`id@rank`), `tool`, `tool_args` (JSON), `no_tool`, `refusal`, `max_latency_ms`, `max_chars`, `max_words`, `json_shape`, `judge` |
 | `evals lint [dir]` | errors for duplicate ids, cases with no check, unknown check types, bad check fields, missing environment variables, a target that does not answer. `--offline`, `--strict` (fail on warnings), `--json` |
-| `evals run [dir]` | asks the target every case and saves `runs/<id>.json`. `--label`, `--id`, `--repeat N`, `--concurrency N`, `--retries N`, `--timeout MS`, `--tag T` |
+| `evals run [dir]` | asks the target every case and saves `runs/<id>.json`. Exits 1 when the target answered no case at all. `--label`, `--id` (a plain name; an existing run is replaced only with `--force`), `--repeat N`, `--concurrency N`, `--retries N`, `--timeout MS`, `--tag T` |
 | `evals score [run]` | applies the checks (from the current cases file, by id; `--frozen` keeps the run's own). `--judge` turns the model-judged check on for this command |
-| `evals compare [base] [new]` | regressions, fixes, unchanged, score and latency changes. Exits 1 when the gate fails. `--json` |
+| `evals compare [dir] [base] [new]` | regressions, fixes, unchanged, missing cases, score and latency changes. Exits 1 when the gate fails. `--json`, `--allow-removed`, `--allow-new-failures` |
 | `evals report [run]` | writes `report.html`. `--baseline R`, `--out FILE` |
 | `evals baseline [run]` | copies a scored run to the baseline file named in the config |
 | `evals build [dir]` | lint, run, score, compare, report. Exits 1 when the gate fails (`--no-gate` always exits 0) |
 | `evals test` | runs the unit tests |
 
-A run can be named by its file, its id or its label. Without one, the newest run is used. The baseline is, in order: the run you name, the `baseline` file in the config, or the newest earlier scored run. Exit codes: 0 fine, 1 gate failed or lint errors, 2 a usage mistake.
+A run can be named by its file, its id or its label. Without one, the newest run is used. The baseline is, in order: the run you name, the `baseline` file in the config, or the newest earlier scored run. A project folder given on the command line must exist; a typo is an error, never a fallback to the current folder. Flags that take a value must have one. Exit codes: 0 fine, 1 gate failed, lint errors or no answers, 2 a usage mistake.
 
 Gate settings in `evals.config.json`, or as flags:
 
 ```json
-"gate": { "maxRegressions": 0, "maxScoreDrop": 5, "maxLatencyIncreasePct": 50, "mustPassTag": "must-pass" }
+"gate": { "maxRegressions": 0, "maxScoreDrop": 5, "maxLatencyIncreasePct": null, "maxErrors": 0, "allowRemoved": false, "allowNewFailures": false, "mustPassTag": "must-pass" }
 ```
+
+These are the defaults. Flags override them for one command: `--max-regressions`, `--max-score-drop`, `--max-latency-increase`, `--max-errors`, `--allow-removed`, `--allow-new-failures`. The score change is measured over the cases both runs asked.
 
 ## CI
 
-[`examples/ci/evals.yml`](examples/ci/evals.yml) is a GitHub Actions workflow. On every pull request it runs `evals build` against the committed baseline, fails the check when a case got worse, and uploads the report and the run as artifacts. Keys come from repository secrets through environment variables. If your target is an HTTP service, start it in the job before the build step.
+[`examples/ci/evals.yml`](examples/ci/evals.yml) is a GitHub Actions workflow. On every pull request it runs `evals build` against the committed baseline, fails the check when the gate fails, and uploads the report and the run as artifacts. A committed baseline is required: the workflow stops with an error without one. eval-studio is fetched at a pinned tag or commit (`EVAL_STUDIO_REF`) and the actions are pinned by commit SHA. Keys come from repository secrets through environment variables; pull requests from forks get no secrets, so the example skips them (see the comments in the file). If your target is an HTTP service, start it in the job before the build step.
 
 ## How it works
 
@@ -116,8 +120,9 @@ Gate settings in `evals.config.json`, or as flags:
 ## Development
 
 ```bash
-./evals test        # 53 unit tests with node --test: every check type, comparison, redaction, CSV, lint,
-                    # each adapter against a local stub server, the runner, the judge, report data
+./evals test        # 72 tests with node --test: every check type, comparison and gate, redaction, CSV, lint,
+                    # each adapter against a local stub server, the runner, the judge, report data, and the
+                    # command line itself in throwaway projects
 ```
 
 No test calls an external service. The OpenAI-compatible target and the model-judged check are tested against a local stub server.

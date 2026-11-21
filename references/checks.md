@@ -2,7 +2,7 @@
 
 Every case has a `checks` list. A check is an object with a `type` and the fields below. Any check can have a `weight` (default 1).
 
-A case **passes** when every check that ran passes. Its **score** is the weighted share of checks passed (a `contains` with `all` gives part credit). Set `threshold` on a case (0 to 1) to let it pass on score instead, for example `"threshold": 0.75`.
+A case **passes** when every check that ran passes. A case whose checks could not run (only model-judged checks, with the judge off) is **skipped**: it is left out of the score, but a skipped `must-pass` case fails the gate. Its **score** is the weighted share of checks passed (a `contains` with `all` gives part credit). Set `threshold` on a case (0 to 1) to let it pass on score instead, for example `"threshold": 0.75`.
 
 Text is compared after folding case, curly quotes and runs of spaces, unless a check says otherwise.
 
@@ -10,12 +10,12 @@ Text is compared after folding case, curly quotes and runs of spaces, unless a c
 |---|---|---|
 | `contains` | `value`, or `all: [...]`, or `any: [...]`; `caseSensitive` | the answer contains the text (all of them, or one of them) |
 | `not-contains` | `value` or `any: [...]`; `caseSensitive` | none of the texts is in the answer |
-| `regex` | `pattern`, `flags` (default `i`) | the pattern matches somewhere in the answer |
+| `regex` | `pattern`, `flags` (default `i`), `timeoutMs` (default 1000) | the pattern matches somewhere in the answer |
 | `exact` | `value`, `ignoreCase` | the whole answer, trimmed, equals the value |
 | `json` | `shape` and/or `values` | the answer is JSON (whole text, a fenced block, or the first `{...}`/`[...]`), fits the shape, and has the values |
 | `number` | `value`, `tolerance` or `tolerancePct`, `pick` (`any` \| `first` \| `last`) | a number in the answer is within the tolerance of `value` |
 | `source` | `id`, `maxRank`, `where` (`retrieved` \| `cited` \| `either`) | the retrieved sources include `id` (in the top `maxRank`), or the answer names it |
-| `tool-call` | `name`, `args`, `min`, `max` | the agent called the tool, with arguments like `args` |
+| `tool-call` | `name`, `args`, `min` (default 1), `max` | the agent called the tool, with arguments like `args`, between `min` and `max` times (`min: 0` with `max` limits calls without requiring one) |
 | `no-tool-call` | `name`, or `any: [...]`, or nothing (no tool at all) | the tool (or any tool) was not called |
 | `refusal` | `expected` (default `true`), `phrases: [...]` | the answer reads as a refusal (or, with `expected: false`, does not) |
 | `max-latency` | `ms` | the call took at most `ms` milliseconds |
@@ -30,7 +30,9 @@ Text is compared after folding case, curly quotes and runs of spaces, unless a c
 {"type": "json", "shape": {"answer": "string", "sources": ["string"], "confidence": "number?"}, "values": {"sources[0]": "fees"}}
 ```
 
-**number.** Reads every number in the answer (`1,250.5` counts as 1250.5). With `pick: "any"` (the default) the nearest one is used, so "2 dollars a day, 6 dollars in all" passes for 6. Use `pick: "last"` for "the final answer".
+**regex.** Patterns come from case files, so two guards stop one from hanging a run. A pattern with a repeated group that itself repeats, such as `(a+)+` or `(\w*)*`, is refused by `lint` and never runs: these are the usual cause of catastrophic backtracking. Every other pattern runs in a worker thread and is stopped after `timeoutMs` (default 1000 ms); the check then fails with "took longer than ... and was stopped". The same refusal applies to `"/.../"` patterns in `tool-call` arguments.
+
+**number.** Reads every number in the answer (`1,250.5` counts as 1250.5). A `-` is a minus sign only when it does not follow a letter, digit, underscore or dot, so "pages 5-10" gives 5 and 10, "2026-01-31" gives 2026, 1 and 31, and "COVID-19" gives 19. A comma is a thousands separator only before exactly three digits (`2,500` is 2500). Decimal commas are not understood: "1,5" reads as 1 and 5, so write answers and expected values with a decimal point, or use a `regex` check for locales that use commas. With `pick: "any"` (the default) the nearest one is used, so "2 dollars a day, 6 dollars in all" passes for 6. Use `pick: "last"` for "the final answer".
 
 **source.** The id is matched without regard to case against `sources[].id` from the target. The result records the rank, which the report shows. `where: "cited"` looks for the id written in the answer (as a word of its own, so `[fees]` or `fees.md` count). Use the ids your system really returns: file names, document ids or URLs.
 

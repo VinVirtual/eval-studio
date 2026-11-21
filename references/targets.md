@@ -8,7 +8,9 @@ The `target` in `evals.config.json` says how to ask the system a question. Four 
 
 Only `answer` is required. `sources` feed the `source` check and the passages panel, `toolCalls` feed the tool checks and the trace, `usage` feeds the token and cost figures (shown only when the target reports them).
 
-**Keys.** Write `${NAME}` in a URL, header or body, or name a variable in `apiKeyEnv`. Values are read from the environment when the case runs and are never written to a run file or report. Run files and reports are also passed through a redactor that masks common key formats, `Bearer ...` values, `password=...` style pairs, URL passwords and the value of every environment variable whose name contains KEY, TOKEN, SECRET or PASSWORD. It catches obvious secrets, not every secret: do not put customer data in cases you share.
+**Keys.** Write `${NAME}` in a URL, header, body or module `options`, or name a variable in `apiKeyEnv`. Values are read from the environment when the case runs and are never written to a run file or report. Run files and reports are also passed through a redactor that masks common key formats, `Bearer ...` values, `password=...` style pairs, URL passwords and the value of every environment variable whose name contains KEY, TOKEN, SECRET or PASSWORD. It catches obvious secrets, not every secret: do not put customer data in cases you share.
+
+Checks see the raw answers: `evals build` scores the run in memory before anything is written, and only the copies on disk are redacted. `evals score` on a saved run file scores the redacted text, so a check that looks for a secret-shaped value only works in `build`.
 
 ## http
 
@@ -54,7 +56,7 @@ Posts to `{baseUrl}/chat/completions`. Tool calls in the reply are recorded (the
 "target": { "type": "command", "command": "python3", "args": ["ask.py", "--id", "{{id}}"], "input": "json", "output": "json", "response": { "answer": "reply" } }
 ```
 
-The question is written to stdin and the answer read from stdout. With `"input": "json"` stdin gets `{ input, id, vars, messages }`. With `"output": "json"` stdout is parsed and mapped like an http response. A non-zero exit code is an error, and the end of stderr is recorded. With `command` alone the string runs through the shell; with `args` it does not, which is safer when slots are used.
+The question is written to stdin and the answer read from stdout. With `"input": "json"` stdin gets `{ input, id, vars, messages }`. With `"output": "json"` stdout is parsed and mapped like an http response. A non-zero exit code is an error, and the end of stderr is recorded. The command runs in its own process group; at the timeout the whole group is killed (the shell, a pipeline, anything it started) and its pipes are closed, so nothing is left running. With `command` alone the string runs through the shell; with `args` it does not, which is safer when slots are used.
 
 ## module
 
@@ -62,7 +64,9 @@ The question is written to stdin and the answer read from stdout. With `"input":
 "target": { "type": "module", "path": "./target.mjs", "export": "answer", "options": { "variant": "b" } }
 ```
 
-Imports the file and calls `fn(input, { id, vars, messages, options, signal })`. Return a string or the object above. The quickest way to test a JavaScript system directly, or to wrap a client library.
+Imports the file and calls `fn(input, { id, vars, messages, options, signal })`. Return a string or the object above. `${NAME}` in `options` is filled from the environment.
+
+**Honour `signal`.** It aborts at the timeout. Pass it to `fetch` and to anything else that waits. The runner gives up on the call either way, but a function that ignores the signal keeps working in the background; the command line then exits at most 2 seconds after it has finished, stopping such leftovers. The quickest way to test a JavaScript system directly, or to wrap a client library.
 
 ## Run settings
 
@@ -73,6 +77,7 @@ Imports the file and calls `fn(input, { id, vars, messages, options, signal })`.
 - `concurrency`: cases asked at once. Mind the target's rate limits.
 - `retries`: extra tries after an error or timeout (with a short back-off). A wrong answer is not retried.
 - `timeoutMs`: per call. A timed-out call is stopped (the request is aborted, the command is killed).
+- `--tag a,b` (command line only) runs only the cases with one of those tags. The run records the tags, and `compare` does not count the other baseline cases as missing.
 - `repeat`: ask every case N times. A case that passes some times and fails others is **flaky**; it counts as not passing, and the report shows each attempt.
 
 ## Adding a target type
