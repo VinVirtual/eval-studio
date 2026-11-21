@@ -1,0 +1,1315 @@
+{
+  "version": 1,
+  "id": "001-baseline",
+  "label": "baseline",
+  "name": "Tool library helper",
+  "createdAt": "2026-11-21T09:18:36.540Z",
+  "target": {
+    "type": "module",
+    "path": "./bot.mjs",
+    "export": "answer"
+  },
+  "settings": {
+    "concurrency": 4,
+    "retries": 0,
+    "timeoutMs": 5000,
+    "repeat": 1
+  },
+  "scored": true,
+  "cases": [
+    {
+      "id": "hours-weekday",
+      "input": "What are the opening times on a Wednesday?",
+      "tags": [
+        "hours",
+        "reasoning"
+      ],
+      "weight": 1,
+      "expected": "10 am to 6 pm (hours.md). Wednesday is not named in the handbook, only 'Tuesday to Friday'.",
+      "note": "Fails on purpose: the bot matches words and does not know Wednesday lies between Tuesday and Friday.",
+      "checks": [
+        {
+          "type": "contains",
+          "all": [
+            "10 am",
+            "6 pm"
+          ]
+        },
+        {
+          "type": "source",
+          "id": "hours",
+          "maxRank": 1
+        }
+      ],
+      "status": "fail",
+      "score": 0,
+      "latencyMs": 4.4,
+      "attempts": [
+        {
+          "answer": "The library does not give advice on electrical wiring or gas work, so ask a licensed professional.",
+          "sources": [
+            {
+              "id": "safety",
+              "text": "The library does not give advice on electrical wiring or gas work, so ask a licensed professional.",
+              "score": 4.3
+            },
+            {
+              "id": "borrowing",
+              "text": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+              "score": 2.36
+            },
+            {
+              "id": "membership",
+              "text": "To join, bring a photo ID and proof of address to the front desk.",
+              "score": 2.36
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 4.4,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"10 am\", \"6 pm\"",
+              "weight": 1,
+              "pass": false,
+              "score": 0,
+              "detail": "missing \"10 am\", \"6 pm\""
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"hours\" in the top 1",
+              "weight": 1,
+              "pass": false,
+              "rank": null,
+              "detail": "not retrieved (retrieved: safety, borrowing, membership)",
+              "score": 0
+            }
+          ],
+          "score": 0,
+          "pass": false
+        }
+      ]
+    },
+    {
+      "id": "hours-saturday",
+      "input": "When is the library open on Saturday?",
+      "tags": [
+        "hours",
+        "must-pass"
+      ],
+      "weight": 1,
+      "expected": "9 am to 1 pm (hours.md).",
+      "checks": [
+        {
+          "type": "regex",
+          "pattern": "9\\s?am\\b.*\\b1\\s?pm"
+        },
+        {
+          "type": "source",
+          "id": "hours",
+          "maxRank": 1
+        },
+        {
+          "type": "max-latency",
+          "ms": 2000
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 4.1,
+      "attempts": [
+        {
+          "answer": "On Saturday it is open from 9 am to 1 pm.",
+          "sources": [
+            {
+              "id": "hours",
+              "text": "On Saturday it is open from 9 am to 1 pm.",
+              "score": 8.47
+            },
+            {
+              "id": "safety",
+              "text": "The library does not give advice on electrical wiring or gas work, so ask a licensed professional.",
+              "score": 5.43
+            },
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 2.45
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 4.1,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "regex",
+              "expected": "matches /9\\s?am\\b.*\\b1\\s?pm/i",
+              "weight": 1,
+              "pass": true,
+              "detail": "matched \"9 am to 1 pm\"",
+              "score": 1
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"hours\" in the top 1",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            },
+            {
+              "type": "max-latency",
+              "expected": "answers within 2000 ms",
+              "weight": 1,
+              "pass": true,
+              "detail": "took 4.1 ms",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "hours-sunday",
+      "input": "Are you open on Sunday?",
+      "tags": [
+        "hours"
+      ],
+      "weight": 1,
+      "expected": "No. Closed on Sunday and Monday (hours.md).",
+      "checks": [
+        {
+          "type": "contains",
+          "value": "closed"
+        },
+        {
+          "type": "refusal",
+          "expected": false
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 4.1,
+      "attempts": [
+        {
+          "answer": "It is closed on Sunday and Monday, and on public holidays.",
+          "sources": [
+            {
+              "id": "hours",
+              "text": "It is closed on Sunday and Monday, and on public holidays.",
+              "score": 4.89
+            },
+            {
+              "id": "membership",
+              "text": "Membership lasts 12 months from the day you join.",
+              "score": 2.94
+            },
+            {
+              "id": "safety",
+              "text": "Safety glasses are lent free with every power tool.",
+              "score": 2.94
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 4.1,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"closed\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"closed\""
+            },
+            {
+              "type": "refusal",
+              "expected": "answers, does not refuse",
+              "weight": 1,
+              "pass": true,
+              "detail": "no refusal phrase found",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "hours-json",
+      "input": "When is it open on Saturday? Answer as JSON.",
+      "tags": [
+        "hours",
+        "format"
+      ],
+      "weight": 1,
+      "expected": "A JSON object with the answer and the source document.",
+      "checks": [
+        {
+          "type": "json",
+          "shape": {
+            "answer": "string",
+            "source": "string"
+          },
+          "values": {
+            "source": "hours"
+          }
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 4.1,
+      "attempts": [
+        {
+          "answer": "{\"answer\":\"On Saturday it is open from 9 am to 1 pm.\",\"source\":\"hours\"}",
+          "sources": [
+            {
+              "id": "hours",
+              "text": "On Saturday it is open from 9 am to 1 pm.",
+              "score": 10.41
+            },
+            {
+              "id": "safety",
+              "text": "Report a damaged tool at the front desk and do not try to repair it yourself.",
+              "score": 1.95
+            },
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 1.27
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 4.1,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "json",
+              "expected": "is JSON shaped like {\"answer\":\"string\",\"source\":\"string\"} with {\"source\":\"hours\"}",
+              "weight": 1,
+              "pass": true,
+              "detail": "valid JSON, shape fits",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "loan-limit",
+      "input": "How many tools can a member borrow at a time?",
+      "tags": [
+        "borrowing",
+        "must-pass"
+      ],
+      "weight": 2,
+      "expected": "Up to 5 (borrowing.md).",
+      "checks": [
+        {
+          "type": "number",
+          "value": 5
+        },
+        {
+          "type": "source",
+          "id": "borrowing"
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 0.7,
+      "attempts": [
+        {
+          "answer": "A member can borrow up to 5 tools at a time.",
+          "sources": [
+            {
+              "id": "borrowing",
+              "text": "A member can borrow up to 5 tools at a time.",
+              "score": 15.37
+            },
+            {
+              "id": "fees",
+              "text": "A lost tool is charged at its replacement cost.",
+              "score": 2.88
+            },
+            {
+              "id": "membership",
+              "text": "Members can reserve a tool up to 14 days ahead.",
+              "score": 2.88
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.7,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "number",
+              "expected": "a number is 5",
+              "weight": 1,
+              "pass": true,
+              "detail": "found 5",
+              "score": 1
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"borrowing\"",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "loan-period",
+      "input": "How long is the loan period?",
+      "tags": [
+        "borrowing",
+        "must-pass"
+      ],
+      "weight": 2,
+      "expected": "7 days (borrowing.md).",
+      "checks": [
+        {
+          "type": "contains",
+          "value": "7 days"
+        },
+        {
+          "type": "max-length",
+          "words": 30
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 0.7,
+      "attempts": [
+        {
+          "answer": "The loan period is 7 days.",
+          "sources": [
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 7.7
+            },
+            {
+              "id": "fees",
+              "text": "The late fee is 2 dollars per tool per day.",
+              "score": 2.45
+            },
+            {
+              "id": "hours",
+              "text": "The tool library is open Tuesday to Friday from 10 am to 6 pm.",
+              "score": 2.45
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.7,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"7 days\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"7 days\""
+            },
+            {
+              "type": "max-length",
+              "expected": "at most 30 words",
+              "weight": 1,
+              "pass": true,
+              "detail": "26 characters, 6 words",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "loan-renewal",
+      "input": "Can a loan be renewed?",
+      "tags": [
+        "borrowing"
+      ],
+      "weight": 1,
+      "expected": "Once, for another 7 days, if nobody is waiting (borrowing.md).",
+      "checks": [
+        {
+          "type": "contains",
+          "all": [
+            "once",
+            "7 days"
+          ]
+        },
+        {
+          "type": "not-contains",
+          "value": "twice"
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 0.7,
+      "attempts": [
+        {
+          "answer": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+          "sources": [
+            {
+              "id": "borrowing",
+              "text": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+              "score": 10.43
+            },
+            {
+              "id": "membership",
+              "text": "Members can reserve a tool up to 14 days ahead.",
+              "score": 2.88
+            },
+            {
+              "id": "fees",
+              "text": "Membership costs 30 dollars a year.",
+              "score": 1.18
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.7,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"once\", \"7 days\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"once\", \"7 days\""
+            },
+            {
+              "type": "not-contains",
+              "expected": "does not contain \"twice\"",
+              "weight": 1,
+              "pass": true,
+              "detail": "none found",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "power-tools-age",
+      "input": "Is there an age limit for power tools?",
+      "tags": [
+        "borrowing",
+        "retrieval"
+      ],
+      "weight": 1,
+      "expected": "Members aged 18 or over (borrowing.md). The safety page also mentions power tools, so the right page must rank first.",
+      "checks": [
+        {
+          "type": "contains",
+          "value": "18"
+        },
+        {
+          "type": "source",
+          "id": "borrowing",
+          "maxRank": 1
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 0.6,
+      "attempts": [
+        {
+          "answer": "Power tools can be borrowed only by members aged 18 or over.",
+          "sources": [
+            {
+              "id": "borrowing",
+              "text": "Power tools can be borrowed only by members aged 18 or over.",
+              "score": 4.25
+            },
+            {
+              "id": "safety",
+              "text": "Safety glasses are lent free with every power tool.",
+              "score": 2.3
+            },
+            {
+              "id": "fees",
+              "text": "The late fee is 2 dollars per tool per day.",
+              "score": 1.27
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.6,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"18\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"18\""
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"borrowing\" in the top 1",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "late-fee-rate",
+      "input": "What is the late fee per day?",
+      "tags": [
+        "fees",
+        "must-pass"
+      ],
+      "weight": 2,
+      "expected": "2 dollars per tool per day (fees.md).",
+      "checks": [
+        {
+          "type": "number",
+          "value": 2,
+          "pick": "first"
+        },
+        {
+          "type": "source",
+          "id": "fees",
+          "maxRank": 1
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 2,
+      "attempts": [
+        {
+          "answer": "The late fee is 2 dollars per tool per day.",
+          "sources": [
+            {
+              "id": "fees",
+              "text": "The late fee is 2 dollars per tool per day.",
+              "score": 12.3
+            },
+            {
+              "id": "membership",
+              "text": "Membership lasts 12 months from the day you join.",
+              "score": 3.48
+            },
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 2.45
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 2,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "number",
+              "expected": "first number is 2",
+              "weight": 1,
+              "pass": true,
+              "detail": "found 2",
+              "score": 1
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"fees\" in the top 1",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "late-fee-sum",
+      "input": "I returned one drill 3 days late. What do I owe in late fees?",
+      "tags": [
+        "fees",
+        "reasoning"
+      ],
+      "weight": 1,
+      "expected": "6 dollars: 2 dollars per tool per day for 3 days (fees.md).",
+      "note": "Fails on purpose: the bot quotes the rule and cannot do the sum.",
+      "checks": [
+        {
+          "type": "number",
+          "value": 6
+        },
+        {
+          "type": "source",
+          "id": "fees"
+        }
+      ],
+      "status": "fail",
+      "score": 0.5,
+      "latencyMs": 1.9,
+      "attempts": [
+        {
+          "answer": "Late fees stop at 20 dollars per tool.",
+          "sources": [
+            {
+              "id": "fees",
+              "text": "Late fees stop at 20 dollars per tool.",
+              "score": 5.25
+            },
+            {
+              "id": "safety",
+              "text": "Report a damaged tool at the front desk and do not try to repair it yourself.",
+              "score": 2.94
+            },
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 1.95
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 1.9,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "number",
+              "expected": "a number is 6",
+              "weight": 1,
+              "pass": false,
+              "detail": "nearest number is 20",
+              "score": 0
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"fees\"",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            }
+          ],
+          "score": 0.5,
+          "pass": false
+        }
+      ]
+    },
+    {
+      "id": "membership-cost-length",
+      "input": "What does membership cost and how long does it last?",
+      "tags": [
+        "membership",
+        "reasoning"
+      ],
+      "weight": 1,
+      "expected": "30 dollars a year (fees.md) and 12 months from joining (membership.md).",
+      "note": "Fails on purpose: the answer needs two documents and the bot returns one sentence.",
+      "checks": [
+        {
+          "type": "contains",
+          "all": [
+            "30 dollars",
+            "12 months"
+          ]
+        }
+      ],
+      "status": "fail",
+      "score": 0,
+      "latencyMs": 1.9,
+      "attempts": [
+        {
+          "answer": "It is closed on Sunday and Monday, and on public holidays.",
+          "sources": [
+            {
+              "id": "hours",
+              "text": "It is closed on Sunday and Monday, and on public holidays.",
+              "score": 3.65
+            },
+            {
+              "id": "safety",
+              "text": "Report a damaged tool at the front desk and do not try to repair it yourself.",
+              "score": 3.65
+            },
+            {
+              "id": "fees",
+              "text": "A lost tool is charged at its replacement cost.",
+              "score": 2.94
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 1.9,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"30 dollars\", \"12 months\"",
+              "weight": 1,
+              "pass": false,
+              "score": 0,
+              "detail": "missing \"30 dollars\", \"12 months\""
+            }
+          ],
+          "score": 0,
+          "pass": false
+        }
+      ]
+    },
+    {
+      "id": "join-documents",
+      "input": "What should I bring to join?",
+      "tags": [
+        "membership"
+      ],
+      "weight": 1,
+      "expected": "A photo ID and proof of address (membership.md).",
+      "checks": [
+        {
+          "type": "contains",
+          "all": [
+            "photo ID",
+            "proof of address"
+          ]
+        },
+        {
+          "type": "source",
+          "id": "membership"
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 1.9,
+      "attempts": [
+        {
+          "answer": "To join, bring a photo ID and proof of address to the front desk.",
+          "sources": [
+            {
+              "id": "membership",
+              "text": "To join, bring a photo ID and proof of address to the front desk.",
+              "score": 6.63
+            },
+            {
+              "id": "borrowing",
+              "text": "A member can borrow up to 5 tools at a time.",
+              "score": 1.39
+            },
+            {
+              "id": "hours",
+              "text": "The tool library is open Tuesday to Friday from 10 am to 6 pm.",
+              "score": 1.39
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 1.9,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"photo ID\", \"proof of address\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"photo ID\", \"proof of address\""
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"membership\"",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "reserve-ladder",
+      "input": "Reserve a ladder for Saturday",
+      "tags": [
+        "tools",
+        "must-pass"
+      ],
+      "weight": 1,
+      "expected": "A reserve_tool call for the ladder on Saturday.",
+      "checks": [
+        {
+          "type": "tool-call",
+          "name": "reserve_tool",
+          "args": {
+            "tool": "ladder",
+            "day": "saturday"
+          }
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 2.5,
+      "attempts": [
+        {
+          "answer": "I have asked for the ladder to be held for saturday.",
+          "sources": [],
+          "toolCalls": [
+            {
+              "name": "reserve_tool",
+              "arguments": {
+                "tool": "ladder",
+                "day": "saturday"
+              }
+            }
+          ],
+          "usage": {},
+          "latencyMs": 2.5,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "tool-call",
+              "expected": "calls tool reserve_tool with arguments like {\"tool\":\"ladder\",\"day\":\"saturday\"}",
+              "weight": 1,
+              "pass": true,
+              "detail": "called 1 time(s), arguments fit",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "reserve-question",
+      "input": "How far ahead can members reserve a tool?",
+      "tags": [
+        "tools",
+        "membership"
+      ],
+      "weight": 1,
+      "expected": "Up to 14 days ahead (membership.md). A question about reserving must not make a reservation.",
+      "checks": [
+        {
+          "type": "no-tool-call",
+          "name": "reserve_tool"
+        },
+        {
+          "type": "contains",
+          "value": "14 days"
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 2.5,
+      "attempts": [
+        {
+          "answer": "Members can reserve a tool up to 14 days ahead.",
+          "sources": [
+            {
+              "id": "membership",
+              "text": "Members can reserve a tool up to 14 days ahead.",
+              "score": 12.25
+            },
+            {
+              "id": "borrowing",
+              "text": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+              "score": 4.06
+            },
+            {
+              "id": "fees",
+              "text": "A lost tool is charged at its replacement cost.",
+              "score": 2.36
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 2.5,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "no-tool-call",
+              "expected": "does not call \"reserve_tool\"",
+              "weight": 1,
+              "pass": true,
+              "detail": "not called",
+              "score": 1
+            },
+            {
+              "type": "contains",
+              "expected": "contains \"14 days\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"14 days\""
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "book-drill",
+      "input": "Please book me the cordless drill for Friday",
+      "tags": [
+        "tools"
+      ],
+      "weight": 1,
+      "expected": "A reserve_tool call for the drill on Friday.",
+      "note": "Fails on purpose: the bot only understands the word 'reserve'.",
+      "checks": [
+        {
+          "type": "tool-call",
+          "name": "reserve_tool",
+          "args": {
+            "tool": "drill",
+            "day": "friday"
+          }
+        }
+      ],
+      "status": "fail",
+      "score": 0,
+      "latencyMs": 2.5,
+      "attempts": [
+        {
+          "answer": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+          "sources": [
+            {
+              "id": "borrowing",
+              "text": "A loan can be renewed once for another 7 days if nobody is waiting for the tool.",
+              "score": 4.12
+            },
+            {
+              "id": "hours",
+              "text": "The tool library is open Tuesday to Friday from 10 am to 6 pm.",
+              "score": 4.12
+            },
+            {
+              "id": "fees",
+              "text": "The late fee is 2 dollars per tool per day.",
+              "score": 1.18
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 2.5,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "tool-call",
+              "expected": "calls tool reserve_tool with arguments like {\"tool\":\"drill\",\"day\":\"friday\"}",
+              "weight": 1,
+              "pass": false,
+              "detail": "no tool was called",
+              "score": 0
+            }
+          ],
+          "score": 0,
+          "pass": false
+        }
+      ]
+    },
+    {
+      "id": "wiring-advice",
+      "input": "Can you give advice on electrical wiring?",
+      "tags": [
+        "safety",
+        "refusal"
+      ],
+      "weight": 1,
+      "expected": "No advice on wiring; ask a licensed professional (safety.md).",
+      "checks": [
+        {
+          "type": "contains",
+          "value": "licensed professional"
+        },
+        {
+          "type": "source",
+          "id": "safety",
+          "maxRank": 1
+        },
+        {
+          "type": "judge",
+          "rubric": "The answer gives no wiring instructions and points the person to a professional."
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 2.5,
+      "attempts": [
+        {
+          "answer": "The library does not give advice on electrical wiring or gas work, so ask a licensed professional.",
+          "sources": [
+            {
+              "id": "safety",
+              "text": "The library does not give advice on electrical wiring or gas work, so ask a licensed professional.",
+              "score": 13.72
+            },
+            {
+              "id": "membership",
+              "text": "Membership lasts 12 months from the day you join.",
+              "score": 2.94
+            },
+            {
+              "id": "hours",
+              "text": "On Saturday it is open from 9 am to 1 pm.",
+              "score": 1.95
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 2.5,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "contains",
+              "expected": "contains \"licensed professional\"",
+              "weight": 1,
+              "pass": true,
+              "score": 1,
+              "detail": "found \"licensed professional\""
+            },
+            {
+              "type": "source",
+              "expected": "retrieves source \"safety\" in the top 1",
+              "weight": 1,
+              "pass": true,
+              "rank": 1,
+              "detail": "retrieved at rank 1 of 3",
+              "score": 1
+            },
+            {
+              "type": "judge",
+              "expected": "a model judges it at 0.7 or more on: The answer gives no wiring instructions and points the person to a professional.",
+              "weight": 1,
+              "modelJudged": true,
+              "pass": null,
+              "detail": "skipped: model-judged checks are off (set judge.enabled in the config, or pass --judge)",
+              "score": null
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "id": "out-of-scope",
+      "input": "What is the capital of France?",
+      "tags": [
+        "refusal"
+      ],
+      "weight": 2,
+      "expected": "A refusal: this is not in the handbook.",
+      "checks": [
+        {
+          "type": "refusal"
+        },
+        {
+          "type": "not-contains",
+          "value": "Paris"
+        }
+      ],
+      "status": "fail",
+      "score": 0.5,
+      "latencyMs": 0.3,
+      "attempts": [
+        {
+          "answer": "To join, bring a photo ID and proof of address to the front desk.",
+          "sources": [
+            {
+              "id": "membership",
+              "text": "To join, bring a photo ID and proof of address to the front desk.",
+              "score": 4.12
+            },
+            {
+              "id": "borrowing",
+              "text": "The loan period is 7 days.",
+              "score": 2.45
+            },
+            {
+              "id": "fees",
+              "text": "The late fee is 2 dollars per tool per day.",
+              "score": 2.45
+            }
+          ],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.3,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "refusal",
+              "expected": "refuses",
+              "weight": 1,
+              "pass": false,
+              "detail": "no refusal phrase found",
+              "score": 0
+            },
+            {
+              "type": "not-contains",
+              "expected": "does not contain \"Paris\"",
+              "weight": 1,
+              "pass": true,
+              "detail": "none found",
+              "score": 1
+            }
+          ],
+          "score": 0.5,
+          "pass": false
+        }
+      ]
+    },
+    {
+      "id": "help",
+      "input": "help",
+      "tags": [
+        "format"
+      ],
+      "weight": 1,
+      "expected": "The fixed help line.",
+      "checks": [
+        {
+          "type": "exact",
+          "value": "Ask me about opening hours, borrowing, fees, membership or safety."
+        }
+      ],
+      "status": "pass",
+      "score": 1,
+      "latencyMs": 0.2,
+      "attempts": [
+        {
+          "answer": "Ask me about opening hours, borrowing, fees, membership or safety.",
+          "sources": [],
+          "toolCalls": [],
+          "usage": {},
+          "latencyMs": 0.2,
+          "retries": 0,
+          "checks": [
+            {
+              "type": "exact",
+              "expected": "is exactly \"Ask me about opening hours, borrowing, fees, membership or safety.\"",
+              "weight": 1,
+              "pass": true,
+              "detail": "same text",
+              "score": 1
+            }
+          ],
+          "score": 1,
+          "pass": true
+        }
+      ]
+    }
+  ],
+  "scoredAt": "2026-11-21T09:22:16.422Z",
+  "judge": null,
+  "summary": {
+    "total": 18,
+    "pass": 13,
+    "fail": 5,
+    "flaky": 0,
+    "error": 0,
+    "skipped": 0,
+    "score": 79.5,
+    "latencyP50": 1.9,
+    "latencyP95": 4.4,
+    "inputTokens": null,
+    "outputTokens": null,
+    "cost": null,
+    "modelJudgedChecks": 0,
+    "byTag": {
+      "borrowing": {
+        "total": 4,
+        "pass": 4,
+        "score": 100
+      },
+      "fees": {
+        "total": 2,
+        "pass": 1,
+        "score": 83.3
+      },
+      "format": {
+        "total": 2,
+        "pass": 2,
+        "score": 100
+      },
+      "hours": {
+        "total": 4,
+        "pass": 3,
+        "score": 75
+      },
+      "membership": {
+        "total": 3,
+        "pass": 2,
+        "score": 66.7
+      },
+      "must-pass": {
+        "total": 5,
+        "pass": 5,
+        "score": 100
+      },
+      "reasoning": {
+        "total": 3,
+        "pass": 0,
+        "score": 16.7
+      },
+      "refusal": {
+        "total": 2,
+        "pass": 1,
+        "score": 66.7
+      },
+      "retrieval": {
+        "total": 1,
+        "pass": 1,
+        "score": 100
+      },
+      "safety": {
+        "total": 1,
+        "pass": 1,
+        "score": 100
+      },
+      "tools": {
+        "total": 3,
+        "pass": 2,
+        "score": 66.7
+      }
+    }
+  }
+}

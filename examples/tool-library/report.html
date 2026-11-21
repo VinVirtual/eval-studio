@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-FGju6BTBXS1wnU+DOswQTvN4LqxD9+O7Sf3K8J+V8H8=&#39;; script-src &#39;sha256-VAP7VljBa3K711gma+52yUha8oufwgK9XmgnBhuwd+w=&#39;; img-src data:; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta name="generator" content="eval-studio">
+<meta name="color-scheme" content="light dark">
+<title>Tool library helper: eval report</title>
+<style>/* eval-studio report. A ledger on paper: serif figures, mono data, hairline rules. No web fonts, no network. */
+:root {
+  --paper: oklch(97.2% 0.009 85);
+  --surface: oklch(99.3% 0.004 85);
+  --inset: oklch(94.6% 0.011 85);
+  --ink: oklch(22% 0.02 260);
+  --ink-2: oklch(40% 0.02 260);
+  --ink-3: oklch(50% 0.018 260);
+  --rule: oklch(86% 0.012 85);
+  --pass: oklch(45% 0.12 155);
+  --pass-bg: oklch(92% 0.055 155);
+  --fail: oklch(49% 0.19 27);
+  --fail-bg: oklch(92.5% 0.045 27);
+  --flaky: oklch(47% 0.11 70);
+  --flaky-bg: oklch(92% 0.07 88);
+  --fixed: oklch(46% 0.14 250);
+  --fixed-bg: oklch(92.5% 0.04 250);
+  --judge: oklch(45% 0.13 310);
+  --shadow: 0 1px 0 oklch(22% 0.02 260 / 0.04), 0 12px 32px -18px oklch(22% 0.02 260 / 0.28);
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "P052", "URW Palladio L", Georgia, serif;
+  --font-text: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lead: clamp(1.15rem, 1rem + 0.7vw, 1.45rem);
+  --text-title: clamp(1.9rem, 1.2rem + 3vw, 3.25rem);
+  --text-score: clamp(5.5rem, 2.5rem + 13vw, 10.5rem);
+
+  --gutter: clamp(1rem, 0.4rem + 3vw, 3rem);
+  --space-section: clamp(2.5rem, 1.6rem + 4vw, 5rem);
+  --radius-s: 4px;
+  --radius-m: 10px;
+  --radius-pill: 999px;
+  --fast: 140ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: oklch(17% 0.016 260);
+    --surface: oklch(21% 0.019 260);
+    --inset: oklch(14% 0.015 260);
+    --ink: oklch(94% 0.012 85);
+    --ink-2: oklch(80% 0.014 85);
+    --ink-3: oklch(69% 0.014 85);
+    --rule: oklch(31% 0.02 260);
+    --pass: oklch(80% 0.15 155);
+    --pass-bg: oklch(30% 0.065 155);
+    --fail: oklch(76% 0.15 25);
+    --fail-bg: oklch(31% 0.085 25);
+    --flaky: oklch(84% 0.13 88);
+    --flaky-bg: oklch(33% 0.065 88);
+    --fixed: oklch(79% 0.11 250);
+    --fixed-bg: oklch(31% 0.07 250);
+    --judge: oklch(80% 0.11 310);
+    --shadow: 0 1px 0 oklch(100% 0 0 / 0.04) inset, 0 18px 40px -22px oklch(0% 0 0 / 0.8);
+  }
+}
+:root[data-theme="dark"] {
+  --paper: oklch(17% 0.016 260);
+  --surface: oklch(21% 0.019 260);
+  --inset: oklch(14% 0.015 260);
+  --ink: oklch(94% 0.012 85);
+  --ink-2: oklch(80% 0.014 85);
+  --ink-3: oklch(69% 0.014 85);
+  --rule: oklch(31% 0.02 260);
+  --pass: oklch(80% 0.15 155);
+  --pass-bg: oklch(30% 0.065 155);
+  --fail: oklch(76% 0.15 25);
+  --fail-bg: oklch(31% 0.085 25);
+  --flaky: oklch(84% 0.13 88);
+  --flaky-bg: oklch(33% 0.065 88);
+  --fixed: oklch(79% 0.11 250);
+  --fixed-bg: oklch(31% 0.07 250);
+  --judge: oklch(80% 0.11 310);
+  --shadow: 0 1px 0 oklch(100% 0 0 / 0.04) inset, 0 18px 40px -22px oklch(0% 0 0 / 0.8);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--paper); -webkit-text-size-adjust: 100%; scroll-padding-top: 5rem; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--text-base)/1.55 var(--font-text);
+  overflow-wrap: anywhere;
+}
+h1, h2, h3, h4, p, ol, ul, dl, dd, figure, pre { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--fixed); outline-offset: 2px; border-radius: var(--radius-s); }
+
+.mast, main, .foot { max-width: 72rem; margin-inline: auto; padding-inline: var(--gutter); }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: var(--gutter); top: 0.5rem; background: var(--surface); padding: 0.4rem 0.8rem; z-index: 10; }
+.noscript { max-width: 40rem; margin: 3rem auto; padding-inline: var(--gutter); }
+
+.eyebrow, .label {
+  font: 600 var(--text-xs)/1.3 var(--font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+.num { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ---------- masthead ---------- */
+.mast { padding-top: 1.25rem; }
+.mast-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-bottom: 0.9rem; border-bottom: 2px solid var(--ink); }
+.theme-toggle {
+  border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius-pill);
+  padding: 0.3rem 0.85rem; font: 600 var(--text-xs)/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  transition: background var(--fast), border-color var(--fast), transform var(--fast);
+}
+.theme-toggle:hover { border-color: var(--ink); }
+.theme-toggle:active { transform: scale(0.97); }
+.mast h1 { font: 500 var(--text-title)/1.05 var(--font-display); letter-spacing: -0.015em; margin-top: clamp(1.5rem, 1rem + 2vw, 2.75rem); text-wrap: balance; }
+.meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.75rem; margin-top: 1rem; font-size: var(--text-sm); color: var(--ink-2); }
+.meta div { display: flex; gap: 0.5rem; align-items: baseline; min-width: 0; }
+.meta dt { font: 600 var(--text-xs)/1.3 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+
+/* ---------- verdict ---------- */
+.verdict { padding-top: var(--space-section); }
+.verdict-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: end; }
+.score-line { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+.score { font: 400 var(--text-score)/0.8 var(--font-display); letter-spacing: -0.04em; margin-left: -0.04em; padding-top: 0.14em; }
+.score small { font-size: 0.2em; letter-spacing: 0; color: var(--ink-3); margin-left: 0.3em; }
+.delta { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.7rem; border-radius: var(--radius-pill); font: 600 var(--text-sm)/1.4 var(--font-mono); background: var(--inset); color: var(--ink-2); margin-bottom: 0.6rem; }
+.delta.up { background: var(--pass-bg); color: var(--pass); }
+.delta.down { background: var(--fail-bg); color: var(--fail); }
+.sentence { font: 400 var(--text-lead)/1.35 var(--font-display); margin-top: 1.5rem; max-width: 34ch; text-wrap: pretty; }
+.sentence .worse { color: var(--fail); font-style: italic; }
+.sentence .better { color: var(--fixed); font-style: italic; }
+.gate { margin-top: 1.1rem; display: grid; gap: 0.3rem; font-size: var(--text-sm); color: var(--ink-2); }
+.gate-chip { justify-self: start; font: 700 var(--text-xs)/1.3 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 0.3rem 0.65rem; border-radius: var(--radius-s); border: 1.5px solid currentColor; }
+.gate-chip.ok { color: var(--pass); }
+.gate-chip.bad { color: var(--fail); background: var(--fail-bg); }
+
+.trend { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); box-shadow: var(--shadow); padding: 1.1rem 1.25rem 1rem; }
+.trend-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.trend-cols { display: flex; align-items: flex-end; gap: clamp(0.35rem, 1.2vw, 0.9rem); height: 9.5rem; margin-top: 1.25rem; border-bottom: 1px solid var(--ink); padding-inline: 0.25rem; }
+.trend-col { flex: 1 1 0; max-width: 6.5rem; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0.3rem; }
+.trend-val { font: 600 var(--text-xs)/1 var(--font-mono); color: var(--ink-2); }
+.trend-bar { width: 100%; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; background: var(--inset); min-height: 2px; opacity: 0.55; transition: opacity var(--fast); }
+.trend-col.current .trend-bar, .trend-col.base .trend-bar, .trend-col:hover .trend-bar { opacity: 1; }
+.trend-col.current .trend-val { color: var(--ink); }
+.trend-bar i { display: block; width: 100%; }
+.seg-pass { background: var(--pass); }
+.seg-flaky { background: var(--flaky); }
+.seg-fail { background: var(--fail); }
+.seg-skip { background: var(--rule); }
+.trend-names { display: flex; gap: clamp(0.35rem, 1.2vw, 0.9rem); padding-inline: 0.25rem; margin-top: 0.45rem; }
+.trend-names span { flex: 1 1 0; max-width: 6.5rem; min-width: 0; text-align: center; font: 500 0.66rem/1.25 var(--font-mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trend-names .current { color: var(--ink); font-weight: 700; }
+.trend-note { margin-top: 0.8rem; font-size: var(--text-xs); color: var(--ink-3); }
+
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); margin-top: clamp(2rem, 4vw, 3.5rem); border-top: 2px solid var(--ink); }
+.figure { padding: 0.9rem 1rem 1rem 0; border-bottom: 1px solid var(--rule); }
+.figure + .figure { padding-left: 1rem; border-left: 1px solid var(--rule); }
+.figure b { display: block; font: 500 clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem)/1.1 var(--font-display); margin-top: 0.35rem; }
+.figure b small { font-size: 0.5em; color: var(--ink-3); font-family: var(--font-text); font-weight: 500; }
+.figure span { font-size: var(--text-xs); color: var(--ink-3); }
+.figure.worse b { color: var(--fail); }
+.figure.better b { color: var(--fixed); }
+
+.spread { margin-top: 1.5rem; }
+.spread-bar { display: flex; height: 0.85rem; border-radius: var(--radius-pill); overflow: hidden; background: var(--inset); gap: 2px; }
+.spread-bar i { display: block; min-width: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; margin-top: 0.6rem; font-size: var(--text-xs); color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.legend i { width: 0.6rem; height: 0.6rem; border-radius: 2px; display: inline-block; }
+
+/* ---------- what changed ---------- */
+.changes { padding-top: var(--space-section); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+h2 { font: 500 clamp(1.5rem, 1.2rem + 1.4vw, 2.1rem)/1.15 var(--font-display); letter-spacing: -0.01em; }
+.section-head p { font-size: var(--text-sm); color: var(--ink-3); }
+.change-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1rem, 3vw, 2.5rem); margin-top: 1.25rem; }
+.change-col { border-top: 3px solid var(--ink-3); padding-top: 0.8rem; }
+.change-col.worse { border-color: var(--fail); }
+.change-col.better { border-color: var(--fixed); }
+.change-col h3 { font: 700 var(--text-xs)/1.3 var(--font-mono); letter-spacing: 0.09em; text-transform: uppercase; display: flex; justify-content: space-between; }
+.change-col.worse h3 { color: var(--fail); }
+.change-col.better h3 { color: var(--fixed); }
+.change-col li { padding: 0.7rem 0; border-bottom: 1px solid var(--rule); }
+.change-col .none { color: var(--ink-3); font-size: var(--text-sm); border: 0; }
+.jump { background: none; border: 0; padding: 0; font: 600 var(--text-sm)/1.4 var(--font-mono); text-align: left; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.25em; transition: text-decoration-color var(--fast); }
+.jump:hover { text-decoration-color: currentColor; }
+.change-col li p { font-size: var(--text-sm); color: var(--ink-2); margin-top: 0.15rem; }
+.also { margin-top: 1rem; font-size: var(--text-sm); color: var(--ink-3); }
+
+/* ---------- cases ---------- */
+.cases { padding-top: var(--space-section); }
+.toolbar { position: sticky; top: 0; z-index: 5; background: color-mix(in oklch, var(--paper) 92%, transparent); backdrop-filter: blur(8px); padding: 0.75rem 0; margin-top: 0.75rem; border-bottom: 2px solid var(--ink); display: grid; gap: 0.6rem; }
+.toolbar-row { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; }
+.chip { border: 1px solid var(--rule); background: transparent; border-radius: var(--radius-pill); padding: 0.28rem 0.75rem; font-size: var(--text-sm); line-height: 1.4; color: var(--ink-2); display: inline-flex; gap: 0.45rem; align-items: baseline; transition: background var(--fast), color var(--fast), border-color var(--fast), transform var(--fast); }
+.chip b { font: 600 var(--text-xs)/1 var(--font-mono); color: var(--ink-3); }
+.chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip:active { transform: scale(0.97); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip[aria-pressed="true"] b { color: inherit; opacity: 0.75; }
+.chip.tag { font-family: var(--font-mono); font-size: var(--text-xs); border-radius: var(--radius-s); padding: 0.25rem 0.5rem; }
+.search { flex: 1 1 11rem; min-width: 0; max-width: 20rem; margin-left: auto; border: 1px solid var(--rule); border-radius: var(--radius-pill); background: var(--surface); padding: 0.32rem 0.9rem; font-size: var(--text-sm); transition: border-color var(--fast); }
+.search:hover, .search:focus { border-color: var(--ink); }
+.search::placeholder { color: var(--ink-3); }
+.empty { padding: 2.5rem 0; color: var(--ink-3); text-align: center; }
+
+.case { border-bottom: 1px solid var(--rule); }
+.case > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) auto 4rem 5.2rem 1rem; gap: 0.2rem 1rem; align-items: center; padding: 0.8rem 0.5rem 0.8rem 0.75rem; border-left: 3px solid transparent; transition: background var(--fast), border-color var(--fast); }
+.case > summary::-webkit-details-marker { display: none; }
+.case > summary:hover { background: var(--surface); }
+.case[open] > summary { background: var(--surface); border-left-color: var(--ink); }
+.case.is-regressed > summary { border-left-color: var(--fail); }
+.case.is-fixed > summary { border-left-color: var(--fixed); }
+.status { display: inline-flex; align-items: center; gap: 0.4rem; font: 700 var(--text-xs)/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.status::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: currentColor; flex: none; }
+.status.pass { color: var(--pass); }
+.status.fail, .status.error { color: var(--fail); }
+.status.fail::before, .status.error::before { border-radius: 1px; }
+.status.flaky { color: var(--flaky); }
+.status.flaky::before { border-radius: 0; transform: rotate(45deg); }
+.status.skipped { color: var(--ink-3); }
+.status.skipped::before { background: transparent; border: 1.5px solid currentColor; }
+.case-main { min-width: 0; }
+.case-id { font: 600 var(--text-sm)/1.35 var(--font-mono); }
+.case-q { font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.case-side { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: flex-end; align-items: center; max-width: 17rem; }
+.pill { font: 500 0.68rem/1.3 var(--font-mono); padding: 0.14rem 0.4rem; border-radius: var(--radius-s); background: var(--inset); color: var(--ink-2); white-space: nowrap; }
+.badge { font: 700 0.68rem/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 0.16rem 0.45rem; border-radius: var(--radius-s); white-space: nowrap; }
+.badge.regressed { background: var(--fail); color: var(--paper); }
+.badge.fixed { background: var(--fixed); color: var(--paper); }
+.badge.new { border: 1px solid var(--ink-3); color: var(--ink-2); }
+.badge.judged { border: 1px dashed var(--judge); color: var(--judge); }
+.case-score, .case-ms { text-align: right; font: 500 var(--text-sm)/1.3 var(--font-mono); color: var(--ink-2); }
+.case-score.full { color: var(--ink-3); }
+.chev { width: 0.5rem; height: 0.5rem; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(45deg); transition: transform 220ms var(--ease); justify-self: center; }
+.case[open] .chev { transform: rotate(225deg); }
+
+.detail { background: var(--inset); border-left: 3px solid var(--ink); padding: clamp(1rem, 2.5vw, 1.75rem); display: grid; gap: 1.5rem; animation: reveal 260ms var(--ease); }
+.case.is-regressed .detail { border-left-color: var(--fail); }
+.case.is-fixed .detail { border-left-color: var(--fixed); }
+@keyframes reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.detail h4 { font: 700 var(--text-xs)/1.3 var(--font-mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem clamp(1rem, 3vw, 2rem); }
+.question { font: 400 var(--text-lead)/1.35 var(--font-display); }
+.expected { color: var(--ink-2); }
+.note { font-size: var(--text-sm); color: var(--ink-3); margin-top: 0.4rem; }
+.answer { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 0.9rem 1rem 1rem; min-width: 0; }
+.answer.now { box-shadow: var(--shadow); }
+.answer-text { white-space: pre-wrap; font-size: 0.95rem; }
+.answer-text.is-empty, .answer-text.is-error { color: var(--ink-3); font-style: italic; }
+.answer-text.is-error { color: var(--fail); font-style: normal; font-family: var(--font-mono); font-size: var(--text-sm); }
+.answer-text del { background: var(--fail-bg); color: var(--fail); text-decoration-thickness: 1px; border-radius: 2px; padding: 0 0.15em; }
+.answer-text ins { background: var(--pass-bg); color: var(--pass); text-decoration: none; border-radius: 2px; padding: 0 0.15em; font-weight: 600; }
+.same-note { font-size: var(--text-xs); color: var(--ink-3); font-weight: 500; text-transform: none; letter-spacing: 0; font-family: var(--font-text); }
+.attempts { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+
+.checks li { display: grid; grid-template-columns: 1.4rem 8.5rem minmax(0, 1.1fr) minmax(0, 1fr); gap: 0.15rem 0.9rem; padding: 0.55rem 0.6rem; border-top: 1px solid var(--rule); font-size: var(--text-sm); align-items: baseline; }
+.checks li:last-child { border-bottom: 1px solid var(--rule); }
+.checks li.failed { background: var(--fail-bg); }
+.mark { font: 700 var(--text-sm)/1.4 var(--font-mono); }
+.mark.pass { color: var(--pass); }
+.mark.fail { color: var(--fail); }
+.mark.none { color: var(--ink-3); }
+.check-type { font: 600 var(--text-xs)/1.6 var(--font-mono); }
+.check-got { color: var(--ink-2); }
+.checks li.failed .check-got { color: var(--ink); font-weight: 500; }
+.was { display: block; font-size: var(--text-xs); color: var(--ink-3); }
+
+.passages li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 0.75rem; padding: 0.6rem 0; border-top: 1px solid var(--rule); }
+.rank { font: 400 1.6rem/1 var(--font-display); color: var(--ink-3); }
+.passages .hit .rank { color: var(--pass); }
+.passage-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font: 600 var(--text-sm)/1.4 var(--font-mono); }
+.passage-head .hitmark { font: 700 0.68rem/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--pass); border: 1px solid currentColor; border-radius: var(--radius-s); padding: 0.1rem 0.35rem; }
+.passage-text { font-size: var(--text-sm); color: var(--ink-2); margin-top: 0.15rem; }
+.passages li > div, .tools li > div { min-width: 0; }
+.tools li { padding: 0.6rem 0; border-top: 1px solid var(--rule); display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 0.75rem; }
+.tools pre, .raw { font: 400 var(--text-xs)/1.5 var(--font-mono); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 0.5rem 0.65rem; margin-top: 0.35rem; overflow-x: auto; white-space: pre; max-width: 100%; }
+.facts { display: flex; flex-wrap: wrap; gap: 0.3rem 1.5rem; font: 500 var(--text-xs)/1.5 var(--font-mono); color: var(--ink-3); }
+
+/* ---------- footer ---------- */
+.foot { padding-block: var(--space-section) 3rem; }
+.foot-inner { border-top: 2px solid var(--ink); padding-top: 1rem; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1rem 3rem; font-size: var(--text-sm); color: var(--ink-2); }
+.foot h3 { font: 700 var(--text-xs)/1.3 var(--font-mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 0.4rem; }
+.foot li { padding-left: 1rem; position: relative; }
+.foot li::before { content: "–"; position: absolute; left: 0; color: var(--ink-3); }
+
+/* ---------- small screens ---------- */
+@media (max-width: 46rem) {
+  .verdict-grid, .change-grid, .pair, .foot-inner { grid-template-columns: minmax(0, 1fr); }
+  .figure, .figure + .figure { padding: 0.8rem 0.75rem 0.9rem 0; border-left: 0; }
+  .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1rem; }
+  .search { max-width: none; flex-basis: 100%; margin-left: 0; }
+  .toolbar { position: static; }
+  .case > summary { grid-template-columns: minmax(0, 1fr) auto auto 1rem; grid-template-areas: "status status score chev" "main main main main" "side side ms ms"; padding: 0.8rem 0.25rem 0.8rem 0.6rem; }
+  .case > summary > .status { grid-area: status; }
+  .case-main { grid-area: main; }
+  .case-q { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .case-side { grid-area: side; justify-content: flex-start; max-width: none; }
+  .case-score { grid-area: score; }
+  .case-ms { grid-area: ms; }
+  .chev { grid-area: chev; }
+  .checks li { grid-template-columns: 1.4rem minmax(0, 1fr); }
+  .checks li > :nth-child(n + 3) { grid-column: 2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media print {
+  .toolbar, .theme-toggle, .skip { display: none; }
+  .case > summary { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#cases">Skip to the cases</a>
+<header class="mast" id="mast"></header>
+<main>
+  <section class="verdict" id="verdict" aria-label="Summary"></section>
+  <section class="changes" id="changes" aria-label="What changed"></section>
+  <section class="cases" id="cases" aria-label="Cases"></section>
+</main>
+<footer class="foot" id="foot"></footer>
+<noscript><p class="noscript">This report needs JavaScript to draw itself. Everything it shows is inside this file; nothing is loaded from the network.</p></noscript>
+<script type="application/json" id="eval-data">{"generator":"eval-studio","generatedAt":"2026-11-21T09:22:16.609Z","name":"Tool library helper","run":{"id":"002-changed","label":"changed","createdAt":"2026-11-21T09:18:36.781Z","target":{"type":"module","path":"./bot.mjs","export":"answer"},"settings":{"concurrency":4,"retries":0,"timeoutMs":5000,"repeat":1},"judge":null},"summary":{"total":18,"pass":13,"fail":5,"flaky":0,"error":0,"skipped":0,"score":81.8,"latencyP50":2.3,"latencyP95":6.5,"inputTokens":null,"outputTokens":null,"cost":null,"modelJudgedChecks":0,"byTag":{"borrowing":{"total":4,"pass":4,"score":100},"fees":{"total":2,"pass":1,"score":83.3},"format":{"total":2,"pass":2,"score":100},"hours":{"total":4,"pass":2,"score":50},"membership":{"total":3,"pass":2,"score":83.3},"must-pass":{"total":5,"pass":5,"score":100},"reasoning":{"total":3,"pass":0,"score":33.3},"refusal":{"total":2,"pass":2,"score":100},"retrieval":{"total":1,"pass":1,"score":100},"safety":{"total":1,"pass":1,"score":100},"tools":{"total":3,"pass":2,"score":66.7}}},"baseline":{"id":"001-baseline","label":"baseline","createdAt":"2026-11-21T09:18:36.540Z","summary":{"total":18,"pass":13,"fail":5,"flaky":0,"error":0,"skipped":0,"score":79.5,"latencyP50":1.9,"latencyP95":4.4,"inputTokens":null,"outputTokens":null,"cost":null,"modelJudgedChecks":0,"byTag":{"borrowing":{"total":4,"pass":4,"score":100},"fees":{"total":2,"pass":1,"score":83.3},"format":{"total":2,"pass":2,"score":100},"hours":{"total":4,"pass":3,"score":75},"membership":{"total":3,"pass":2,"score":66.7},"must-pass":{"total":5,"pass":5,"score":100},"reasoning":{"total":3,"pass":0,"score":16.7},"refusal":{"total":2,"pass":1,"score":66.7},"retrieval":{"total":1,"pass":1,"score":100},"safety":{"total":1,"pass":1,"score":100},"tools":{"total":3,"pass":2,"score":66.7}}}},"comparison":{"regressions":[{"id":"hours-sunday","reason":"contains: missing \"closed\""}],"fixes":[{"id":"out-of-scope"}],"added":[],"removed":[],"unchanged":{"pass":12,"fail":4},"score":{"base":79.5,"next":81.8,"delta":2.3},"latency":{"base":1.9,"next":2.3,"delta":0.4},"gate":{"ok":false,"reasons":["1 case got worse (allowed: 0): hours-sunday"]}},"history":[{"id":"001-baseline","label":"baseline","createdAt":"2026-11-21T09:18:36.540Z","score":79.5,"total":18,"pass":13,"flaky":0,"fail":5,"latencyP50":1.9},{"id":"002-changed","label":"changed","createdAt":"2026-11-21T09:18:36.781Z","score":81.8,"total":18,"pass":13,"flaky":0,"fail":5,"latencyP50":2.3}],"cases":[{"id":"hours-weekday","input":"What are the opening times on a Wednesday?","expected":"10 am to 6 pm (hours.md). Wednesday is not named in the handbook, only 'Tuesday to Friday'.","note":"Fails on purpose: the bot matches words and does not know Wednesday lies between Tuesday and Friday.","tags":["hours","reasoning"],"weight":1,"status":"fail","score":0,"latencyMs":6.5,"change":"same","scoreDelta":0,"latencyDelta":2.1,"expectedSources":["hours"],"attempts":[{"answer":"I can't answer that from the tool library handbook.","sources":[{"id":"borrowing","text":"A member can borrow up to 5 tools at a time.","score":2.94}],"toolCalls":[],"usage":{},"latencyMs":6.5,"retries":0,"checks":[{"type":"contains","expected":"contains \"10 am\", \"6 pm\"","weight":1,"pass":false,"score":0,"detail":"missing \"10 am\", \"6 pm\""},{"type":"source","expected":"retrieves source \"hours\" in the top 1","weight":1,"pass":false,"rank":null,"detail":"not retrieved (retrieved: borrowing)","score":0}],"score":0,"pass":false}],"base":{"status":"fail","score":0,"latencyMs":4.4,"answer":"The library does not give advice on electrical wiring or gas work, so ask a licensed professional.","error":null,"checks":[{"type":"contains","pass":false,"detail":"missing \"10 am\", \"6 pm\""},{"type":"source","pass":false,"detail":"not retrieved (retrieved: safety, borrowing, membership)"}]}},{"id":"hours-saturday","input":"When is the library open on Saturday?","expected":"9 am to 1 pm (hours.md).","note":null,"tags":["hours","must-pass"],"weight":1,"status":"pass","score":1,"latencyMs":6.3,"change":"same","scoreDelta":0,"latencyDelta":2.2,"expectedSources":["hours"],"attempts":[{"answer":"On Saturday it is open from 9 am to 1 pm.","sources":[{"id":"hours","text":"On Saturday it is open from 9 am to 1 pm.","score":5.25},{"id":"safety","text":"The library does not give advice on electrical wiring or gas work, so ask a licensed professional.","score":2.3}],"toolCalls":[],"usage":{},"latencyMs":6.3,"retries":0,"checks":[{"type":"regex","expected":"matches /9\\s?am\\b.*\\b1\\s?pm/i","weight":1,"pass":true,"detail":"matched \"9 am to 1 pm\"","score":1},{"type":"source","expected":"retrieves source \"hours\" in the top 1","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 2","score":1},{"type":"max-latency","expected":"answers within 2000 ms","weight":1,"pass":true,"detail":"took 6.3 ms","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":4.1,"answer":"On Saturday it is open from 9 am to 1 pm.","error":null,"checks":[{"type":"regex","pass":true,"detail":"matched \"9 am to 1 pm\""},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"},{"type":"max-latency","pass":true,"detail":"took 4.1 ms"}]}},{"id":"hours-sunday","input":"Are you open on Sunday?","expected":"No. Closed on Sunday and Monday (hours.md).","note":null,"tags":["hours"],"weight":1,"status":"fail","score":0,"latencyMs":6.3,"change":"regressed","scoreDelta":-1,"latencyDelta":2.2,"expectedSources":[],"attempts":[{"answer":"I can't answer that from the tool library handbook.","sources":[{"id":"hours","text":"It is closed on Sunday and Monday, and on public holidays.","score":2.94}],"toolCalls":[],"usage":{},"latencyMs":6.3,"retries":0,"checks":[{"type":"contains","expected":"contains \"closed\"","weight":1,"pass":false,"score":0,"detail":"missing \"closed\""},{"type":"refusal","expected":"answers, does not refuse","weight":1,"pass":false,"detail":"reads as a refusal (\"i can't\")","score":0}],"score":0,"pass":false}],"base":{"status":"pass","score":1,"latencyMs":4.1,"answer":"It is closed on Sunday and Monday, and on public holidays.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"closed\""},{"type":"refusal","pass":true,"detail":"no refusal phrase found"}]}},{"id":"hours-json","input":"When is it open on Saturday? Answer as JSON.","expected":"A JSON object with the answer and the source document.","note":null,"tags":["hours","format"],"weight":1,"status":"pass","score":1,"latencyMs":6.3,"change":"same","scoreDelta":0,"latencyDelta":2.2,"expectedSources":[],"attempts":[{"answer":"{\"answer\":\"On Saturday it is open from 9 am to 1 pm.\",\"source\":\"hours\"}","sources":[{"id":"hours","text":"On Saturday it is open from 9 am to 1 pm.","score":5.25}],"toolCalls":[],"usage":{},"latencyMs":6.3,"retries":0,"checks":[{"type":"json","expected":"is JSON shaped like {\"answer\":\"string\",\"source\":\"string\"} with {\"source\":\"hours\"}","weight":1,"pass":true,"detail":"valid JSON, shape fits","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":4.1,"answer":"{\"answer\":\"On Saturday it is open from 9 am to 1 pm.\",\"source\":\"hours\"}","error":null,"checks":[{"type":"json","pass":true,"detail":"valid JSON, shape fits"}]}},{"id":"loan-limit","input":"How many tools can a member borrow at a time?","expected":"Up to 5 (borrowing.md).","note":null,"tags":["borrowing","must-pass"],"weight":2,"status":"pass","score":1,"latencyMs":2.3,"change":"same","scoreDelta":0,"latencyDelta":1.6,"expectedSources":["borrowing"],"attempts":[{"answer":"A member can borrow up to 5 tools at a time.","sources":[{"id":"borrowing","text":"A member can borrow up to 5 tools at a time.","score":8.8},{"id":"membership","text":"Members can reserve a tool up to 14 days ahead.","score":2.92},{"id":"fees","text":"The late fee is 2 dollars per tool per day.","score":0.97}],"toolCalls":[],"usage":{},"latencyMs":2.3,"retries":0,"checks":[{"type":"number","expected":"a number is 5","weight":1,"pass":true,"detail":"found 5","score":1},{"type":"source","expected":"retrieves source \"borrowing\"","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 3","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":0.7,"answer":"A member can borrow up to 5 tools at a time.","error":null,"checks":[{"type":"number","pass":true,"detail":"found 5"},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"}]}},{"id":"loan-period","input":"How long is the loan period?","expected":"7 days (borrowing.md).","note":null,"tags":["borrowing","must-pass"],"weight":2,"status":"pass","score":1,"latencyMs":2.3,"change":"same","scoreDelta":0,"latencyDelta":1.6,"expectedSources":[],"attempts":[{"answer":"The loan period is 7 days.","sources":[{"id":"borrowing","text":"The loan period is 7 days.","score":5.25}],"toolCalls":[],"usage":{},"latencyMs":2.3,"retries":0,"checks":[{"type":"contains","expected":"contains \"7 days\"","weight":1,"pass":true,"score":1,"detail":"found \"7 days\""},{"type":"max-length","expected":"at most 30 words","weight":1,"pass":true,"detail":"26 characters, 6 words","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":0.7,"answer":"The loan period is 7 days.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"7 days\""},{"type":"max-length","pass":true,"detail":"26 characters, 6 words"}]}},{"id":"loan-renewal","input":"Can a loan be renewed?","expected":"Once, for another 7 days, if nobody is waiting (borrowing.md).","note":null,"tags":["borrowing"],"weight":1,"status":"pass","score":1,"latencyMs":2.3,"change":"same","scoreDelta":0,"latencyDelta":1.6,"expectedSources":[],"attempts":[{"answer":"A loan can be renewed once for another 7 days if nobody is waiting for the tool.","sources":[{"id":"borrowing","text":"A loan can be renewed once for another 7 days if nobody is waiting for the tool.","score":5.25}],"toolCalls":[],"usage":{},"latencyMs":2.3,"retries":0,"checks":[{"type":"contains","expected":"contains \"once\", \"7 days\"","weight":1,"pass":true,"score":1,"detail":"found \"once\", \"7 days\""},{"type":"not-contains","expected":"does not contain \"twice\"","weight":1,"pass":true,"detail":"none found","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":0.7,"answer":"A loan can be renewed once for another 7 days if nobody is waiting for the tool.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"once\", \"7 days\""},{"type":"not-contains","pass":true,"detail":"none found"}]}},{"id":"power-tools-age","input":"Is there an age limit for power tools?","expected":"Members aged 18 or over (borrowing.md). The safety page also mentions power tools, so the right page must rank first.","note":null,"tags":["borrowing","retrieval"],"weight":1,"status":"pass","score":1,"latencyMs":2.3,"change":"same","scoreDelta":0,"latencyDelta":1.7,"expectedSources":["borrowing"],"attempts":[{"answer":"Power tools can be borrowed only by members aged 18 or over.","sources":[{"id":"borrowing","text":"Power tools can be borrowed only by members aged 18 or over.","score":3.27},{"id":"safety","text":"Safety glasses are lent free with every power tool.","score":3.27},{"id":"fees","text":"The late fee is 2 dollars per tool per day.","score":0.97}],"toolCalls":[],"usage":{},"latencyMs":2.3,"retries":0,"checks":[{"type":"contains","expected":"contains \"18\"","weight":1,"pass":true,"score":1,"detail":"found \"18\""},{"type":"source","expected":"retrieves source \"borrowing\" in the top 1","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 3","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":0.6,"answer":"Power tools can be borrowed only by members aged 18 or over.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"18\""},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"}]}},{"id":"late-fee-rate","input":"What is the late fee per day?","expected":"2 dollars per tool per day (fees.md).","note":null,"tags":["fees","must-pass"],"weight":2,"status":"pass","score":1,"latencyMs":1.1,"change":"same","scoreDelta":0,"latencyDelta":-0.9,"expectedSources":["fees"],"attempts":[{"answer":"The late fee is 2 dollars per tool per day.","sources":[{"id":"fees","text":"The late fee is 2 dollars per tool per day.","score":8.43},{"id":"borrowing","text":"The loan period is 7 days.","score":1.53},{"id":"membership","text":"Membership lasts 12 months from the day you join.","score":1.53}],"toolCalls":[],"usage":{},"latencyMs":1.1,"retries":0,"checks":[{"type":"number","expected":"first number is 2","weight":1,"pass":true,"detail":"found 2","score":1},{"type":"source","expected":"retrieves source \"fees\" in the top 1","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 3","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":2,"answer":"The late fee is 2 dollars per tool per day.","error":null,"checks":[{"type":"number","pass":true,"detail":"found 2"},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"}]}},{"id":"late-fee-sum","input":"I returned one drill 3 days late. What do I owe in late fees?","expected":"6 dollars: 2 dollars per tool per day for 3 days (fees.md).","note":"Fails on purpose: the bot quotes the rule and cannot do the sum.","tags":["fees","reasoning"],"weight":1,"status":"fail","score":0.5,"latencyMs":1,"change":"same","scoreDelta":0,"latencyDelta":-0.9,"expectedSources":["fees"],"attempts":[{"answer":"The late fee is 2 dollars per tool per day.","sources":[{"id":"fees","text":"The late fee is 2 dollars per tool per day.","score":6.13},{"id":"borrowing","text":"The loan period is 7 days.","score":1.53},{"id":"membership","text":"Membership lasts 12 months from the day you join.","score":1.53}],"toolCalls":[],"usage":{},"latencyMs":1,"retries":0,"checks":[{"type":"number","expected":"a number is 6","weight":1,"pass":false,"detail":"nearest number is 2","score":0},{"type":"source","expected":"retrieves source \"fees\"","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 3","score":1}],"score":0.5,"pass":false}],"base":{"status":"fail","score":0.5,"latencyMs":1.9,"answer":"Late fees stop at 20 dollars per tool.","error":null,"checks":[{"type":"number","pass":false,"detail":"nearest number is 20"},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"}]}},{"id":"membership-cost-length","input":"What does membership cost and how long does it last?","expected":"30 dollars a year (fees.md) and 12 months from joining (membership.md).","note":"Fails on purpose: the answer needs two documents and the bot returns one sentence.","tags":["membership","reasoning"],"weight":1,"status":"fail","score":0.5,"latencyMs":1,"change":"same","scoreDelta":0.5,"latencyDelta":-0.9,"expectedSources":[],"attempts":[{"answer":"Membership lasts 12 months from the day you join.","sources":[{"id":"membership","text":"Membership lasts 12 months from the day you join.","score":5.25},{"id":"fees","text":"Membership costs 30 dollars a year.","score":4.61}],"toolCalls":[],"usage":{},"latencyMs":1,"retries":0,"checks":[{"type":"contains","expected":"contains \"30 dollars\", \"12 months\"","weight":1,"pass":false,"score":0.5,"detail":"missing \"30 dollars\""}],"score":0.5,"pass":false}],"base":{"status":"fail","score":0,"latencyMs":1.9,"answer":"It is closed on Sunday and Monday, and on public holidays.","error":null,"checks":[{"type":"contains","pass":false,"detail":"missing \"30 dollars\", \"12 months\""}]}},{"id":"join-documents","input":"What should I bring to join?","expected":"A photo ID and proof of address (membership.md).","note":null,"tags":["membership"],"weight":1,"status":"pass","score":1,"latencyMs":1,"change":"same","scoreDelta":0,"latencyDelta":-0.9,"expectedSources":["membership"],"attempts":[{"answer":"To join, bring a photo ID and proof of address to the front desk.","sources":[{"id":"membership","text":"To join, bring a photo ID and proof of address to the front desk.","score":5.25}],"toolCalls":[],"usage":{},"latencyMs":1,"retries":0,"checks":[{"type":"contains","expected":"contains \"photo ID\", \"proof of address\"","weight":1,"pass":true,"score":1,"detail":"found \"photo ID\", \"proof of address\""},{"type":"source","expected":"retrieves source \"membership\"","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 1","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":1.9,"answer":"To join, bring a photo ID and proof of address to the front desk.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"photo ID\", \"proof of address\""},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"}]}},{"id":"reserve-ladder","input":"Reserve a ladder for Saturday","expected":"A reserve_tool call for the ladder on Saturday.","note":null,"tags":["tools","must-pass"],"weight":1,"status":"pass","score":1,"latencyMs":2.6,"change":"same","scoreDelta":0,"latencyDelta":0.1,"expectedSources":[],"attempts":[{"answer":"I have asked for the ladder to be held for saturday.","sources":[],"toolCalls":[{"name":"reserve_tool","arguments":{"tool":"ladder","day":"saturday"}}],"usage":{},"latencyMs":2.6,"retries":0,"checks":[{"type":"tool-call","expected":"calls tool reserve_tool with arguments like {\"tool\":\"ladder\",\"day\":\"saturday\"}","weight":1,"pass":true,"detail":"called 1 time(s), arguments fit","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":2.5,"answer":"I have asked for the ladder to be held for saturday.","error":null,"checks":[{"type":"tool-call","pass":true,"detail":"called 1 time(s), arguments fit"}]}},{"id":"reserve-question","input":"How far ahead can members reserve a tool?","expected":"Up to 14 days ahead (membership.md). A question about reserving must not make a reservation.","note":null,"tags":["tools","membership"],"weight":1,"status":"pass","score":1,"latencyMs":2.5,"change":"same","scoreDelta":0,"latencyDelta":0,"expectedSources":[],"attempts":[{"answer":"Members can reserve a tool up to 14 days ahead.","sources":[{"id":"membership","text":"Members can reserve a tool up to 14 days ahead.","score":8.8},{"id":"borrowing","text":"A member can borrow up to 5 tools at a time.","score":2.92},{"id":"fees","text":"The late fee is 2 dollars per tool per day.","score":0.97}],"toolCalls":[],"usage":{},"latencyMs":2.5,"retries":0,"checks":[{"type":"no-tool-call","expected":"does not call \"reserve_tool\"","weight":1,"pass":true,"detail":"not called","score":1},{"type":"contains","expected":"contains \"14 days\"","weight":1,"pass":true,"score":1,"detail":"found \"14 days\""}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":2.5,"answer":"Members can reserve a tool up to 14 days ahead.","error":null,"checks":[{"type":"no-tool-call","pass":true,"detail":"not called"},{"type":"contains","pass":true,"detail":"found \"14 days\""}]}},{"id":"book-drill","input":"Please book me the cordless drill for Friday","expected":"A reserve_tool call for the drill on Friday.","note":"Fails on purpose: the bot only understands the word 'reserve'.","tags":["tools"],"weight":1,"status":"fail","score":0,"latencyMs":2.5,"change":"same","scoreDelta":0,"latencyDelta":0,"expectedSources":[],"attempts":[{"answer":"I can't answer that from the tool library handbook.","sources":[{"id":"hours","text":"The tool library is open Tuesday to Friday from 10 am to 6 pm.","score":2.94}],"toolCalls":[],"usage":{},"latencyMs":2.5,"retries":0,"checks":[{"type":"tool-call","expected":"calls tool reserve_tool with arguments like {\"tool\":\"drill\",\"day\":\"friday\"}","weight":1,"pass":false,"detail":"no tool was called","score":0}],"score":0,"pass":false}],"base":{"status":"fail","score":0,"latencyMs":2.5,"answer":"A loan can be renewed once for another 7 days if nobody is waiting for the tool.","error":null,"checks":[{"type":"tool-call","pass":false,"detail":"no tool was called"}]}},{"id":"wiring-advice","input":"Can you give advice on electrical wiring?","expected":"No advice on wiring; ask a licensed professional (safety.md).","note":null,"tags":["safety","refusal"],"weight":1,"status":"pass","score":1,"latencyMs":2.5,"change":"same","scoreDelta":0,"latencyDelta":0,"expectedSources":["safety"],"attempts":[{"answer":"The library does not give advice on electrical wiring or gas work, so ask a licensed professional.","sources":[{"id":"safety","text":"The library does not give advice on electrical wiring or gas work, so ask a licensed professional.","score":11.78}],"toolCalls":[],"usage":{},"latencyMs":2.5,"retries":0,"checks":[{"type":"contains","expected":"contains \"licensed professional\"","weight":1,"pass":true,"score":1,"detail":"found \"licensed professional\""},{"type":"source","expected":"retrieves source \"safety\" in the top 1","weight":1,"pass":true,"rank":1,"detail":"retrieved at rank 1 of 1","score":1},{"type":"judge","expected":"a model judges it at 0.7 or more on: The answer gives no wiring instructions and points the person to a professional.","weight":1,"modelJudged":true,"pass":null,"detail":"skipped: model-judged checks are off (set judge.enabled in the config, or pass --judge)","score":null}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":2.5,"answer":"The library does not give advice on electrical wiring or gas work, so ask a licensed professional.","error":null,"checks":[{"type":"contains","pass":true,"detail":"found \"licensed professional\""},{"type":"source","pass":true,"detail":"retrieved at rank 1 of 3"},{"type":"judge","pass":null,"detail":"skipped: model-judged checks are off (set judge.enabled in the config, or pass --judge)"}]}},{"id":"out-of-scope","input":"What is the capital of France?","expected":"A refusal: this is not in the handbook.","note":null,"tags":["refusal"],"weight":2,"status":"pass","score":1,"latencyMs":0.3,"change":"fixed","scoreDelta":0.5,"latencyDelta":0,"expectedSources":[],"attempts":[{"answer":"I can't answer that from the tool library handbook.","sources":[],"toolCalls":[],"usage":{},"latencyMs":0.3,"retries":0,"checks":[{"type":"refusal","expected":"refuses","weight":1,"pass":true,"detail":"reads as a refusal (\"i can't\")","score":1},{"type":"not-contains","expected":"does not contain \"Paris\"","weight":1,"pass":true,"detail":"none found","score":1}],"score":1,"pass":true}],"base":{"status":"fail","score":0.5,"latencyMs":0.3,"answer":"To join, bring a photo ID and proof of address to the front desk.","error":null,"checks":[{"type":"refusal","pass":false,"detail":"no refusal phrase found"},{"type":"not-contains","pass":true,"detail":"none found"}]}},{"id":"help","input":"help","expected":"The fixed help line.","note":null,"tags":["format"],"weight":1,"status":"pass","score":1,"latencyMs":0.3,"change":"same","scoreDelta":0,"latencyDelta":0.1,"expectedSources":[],"attempts":[{"answer":"Ask me about opening hours, borrowing, fees, membership or safety.","sources":[],"toolCalls":[],"usage":{},"latencyMs":0.3,"retries":0,"checks":[{"type":"exact","expected":"is exactly \"Ask me about opening hours, borrowing, fees, membership or safety.\"","weight":1,"pass":true,"detail":"same text","score":1}],"score":1,"pass":true}],"base":{"status":"pass","score":1,"latencyMs":0.2,"answer":"Ask me about opening hours, borrowing, fees, membership or safety.","error":null,"checks":[{"type":"exact","pass":true,"detail":"same text"}]}}]}</script>
+<script>// Word-level diff of two answers. No imports: this file is also pasted into the report page.
+
+const MAX_DIFF_CELLS = 400_000
+
+const tokensOf = (text) => String(text ?? '').match(/\n|[^\s]+/g) ?? []
+
+/**
+ * -> [{ op: 'same' | 'del' | 'add', text }] in reading order, with neighbours of the same op joined,
+ * or null when the texts are too long to compare word by word.
+ */
+function wordDiff(before, after) {
+  const a = tokensOf(before)
+  const b = tokensOf(after)
+  if (a.length * b.length > MAX_DIFF_CELLS) return null
+  // lcs[i][j] = length of the longest common subsequence of a[i..] and b[j..]
+  const lcs = Array.from({ length: a.length + 1 }, () => new Uint32Array(b.length + 1))
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1])
+  }
+  const parts = []
+  const push = (op, token) => {
+    const last = parts[parts.length - 1]
+    if (last && last.op === op) last.text += (token === '\n' || last.text.endsWith('\n') ? '' : ' ') + token
+    else parts.push({ op, text: token })
+  }
+  let i = 0
+  let j = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { push('same', a[i]); i++; j++ }
+    else if (lcs[i + 1][j] >= lcs[i][j + 1]) push('del', a[i++])
+    else push('add', b[j++])
+  }
+  while (i < a.length) push('del', a[i++])
+  while (j < b.length) push('add', b[j++])
+  return parts
+}
+
+// eval-studio report page. Draws everything from the JSON block in this file. Every value is
+// written with textContent, never as HTML. Filters, the open case and the theme live in the URL hash.
+const DATA = JSON.parse(document.getElementById('eval-data').textContent)
+const root = document.documentElement
+const byId = (id) => document.getElementById(id)
+
+const STATUS_NAMES = { pass: 'Pass', fail: 'Fail', flaky: 'Flaky', error: 'Error', skipped: 'Skipped' }
+const FILTERS = [
+  { key: 'all', name: 'All', test: () => true },
+  { key: 'failing', name: 'Not passing', test: (c) => ['fail', 'error', 'flaky'].includes(c.status) },
+  { key: 'regressed', name: 'Got worse', test: (c) => c.change === 'regressed' },
+  { key: 'fixed', name: 'Fixed', test: (c) => c.change === 'fixed' },
+  { key: 'passing', name: 'Passing', test: (c) => c.status === 'pass' },
+]
+const MIN_SHARED_FOR_DIFF = 0.4
+const LIMITS = [
+  'String checks are blunt: an answer can contain the right words and still be wrong.',
+  'Model-judged scores change between runs and are an opinion, not ground truth.',
+  'Passing cases show these cases pass. They do not prove the system is right in general.',
+]
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag)
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value === false || value === null || value === undefined) continue
+    if (key === 'class') el.className = value
+    else if (key === 'css') for (const [prop, v] of Object.entries(value)) el.style.setProperty(prop, v)
+    else if (key.startsWith('on')) el.addEventListener(key.slice(2), value)
+    else el.setAttribute(key, value === true ? '' : value)
+  }
+  for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) el.append(kid)
+  return el
+}
+
+/** append that skips null and false, which Element.append would print as text */
+const put = (el, ...kids) => el.append(...kids.flat(Infinity).filter((kid) => kid !== null && kid !== undefined && kid !== false))
+
+// ---------- formatting ----------
+const fmtMs = (ms) => (ms === null || ms === undefined ? '–' : ms < 10 ? `${ms.toFixed(1)} ms` : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`)
+const fmtPct = (score) => (score === null || score === undefined ? '–' : `${Math.round(score * 100)}%`)
+const fmtScore = (score) => (score === null || score === undefined ? '–' : score.toFixed(1))
+const signed = (n, unit = '') => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n)}${unit}`
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+const runName = (run) => run.label || run.id
+function fmtDate(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return String(iso)
+  return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`
+}
+function targetText(target) {
+  if (target.type === 'http') return `http · ${target.url}`
+  if (target.type === 'openai') return `openai-compatible · ${target.model}`
+  if (target.type === 'command') return `command · ${target.command}`
+  if (target.type === 'module') return `module · ${target.path}`
+  return target.type || 'unknown'
+}
+
+// ---------- state in the URL hash ----------
+const state = { status: 'all', tag: '', q: '', open: '', theme: '' }
+function readHash() {
+  const params = new URLSearchParams(location.hash.slice(1))
+  for (const key of Object.keys(state)) state[key] = params.get(key) || (key === 'status' ? 'all' : '')
+  if (!FILTERS.some((f) => f.key === state.status)) state.status = 'all'
+}
+function writeHash() {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(state)) if (value && !(key === 'status' && value === 'all')) params.set(key, value)
+  const hash = params.toString()
+  history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search)
+}
+
+// ---------- theme ----------
+const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches
+const effectiveTheme = () => state.theme || (systemDark() ? 'dark' : 'light')
+function applyTheme() {
+  if (state.theme) root.dataset.theme = state.theme
+  else delete root.dataset.theme
+  const button = byId('theme-toggle')
+  if (button) button.textContent = effectiveTheme() === 'dark' ? 'Light theme' : 'Dark theme'
+}
+
+// ---------- masthead ----------
+function drawMast() {
+  const { run, baseline } = DATA
+  const meta = [
+    ['Run', runName(run)],
+    ['When', fmtDate(run.createdAt)],
+    ['Target', targetText(run.target)],
+    ['Compared with', baseline ? runName(baseline) : 'nothing yet'],
+    run.settings.repeat > 1 && ['Repeats', `${run.settings.repeat} per case`],
+    run.judge && ['Judge model', run.judge.model],
+  ].filter(Boolean)
+  put(byId('mast'),
+    h('div', { class: 'mast-bar' },
+      h('span', { class: 'eyebrow' }, 'eval-studio · report'),
+      h('button', { class: 'theme-toggle', id: 'theme-toggle', type: 'button', onclick: () => { state.theme = effectiveTheme() === 'dark' ? 'light' : 'dark'; applyTheme(); writeHash() } })),
+    h('h1', null, DATA.name),
+    h('dl', { class: 'meta' }, meta.map(([k, v]) => h('div', null, h('dt', null, k), h('dd', { class: 'mono' }, v)))))
+}
+
+// ---------- verdict ----------
+function sentence() {
+  const { summary: s, comparison: cmp } = DATA
+  const parts = [`${s.pass} of ${plural(s.total, 'case')} pass.`]
+  if (!cmp) return h('p', { class: 'sentence' }, parts[0], ' This is the first run, so there is nothing to compare it with yet.')
+  const worse = cmp.regressions.length
+  const better = cmp.fixes.length
+  if (!worse && !better) return h('p', { class: 'sentence' }, parts[0], ' Nothing changed since the baseline.')
+  return h('p', { class: 'sentence' }, parts[0], ' ',
+    worse ? h('span', { class: 'worse' }, `${worse} got worse`) : 'None got worse',
+    ' and ',
+    better ? h('span', { class: 'better' }, `${better} ${better === 1 ? 'was' : 'were'} fixed`) : 'none were fixed',
+    ' since the baseline.')
+}
+function gateBlock() {
+  const gate = DATA.comparison && DATA.comparison.gate
+  if (!gate) return null
+  return h('div', { class: 'gate' },
+    h('span', { class: `gate-chip ${gate.ok ? 'ok' : 'bad'}` }, gate.ok ? 'Gate passed' : 'Gate failed'),
+    gate.reasons.map((reason) => h('span', null, reason)))
+}
+function trendPanel() {
+  const runs = DATA.history.slice(-14)
+  const cols = runs.map((p) => {
+    const counted = Math.max(1, p.total)
+    const isCurrent = p.id === DATA.run.id
+    const isBase = DATA.baseline && p.id === DATA.baseline.id
+    const height = p.score === null ? 0 : Math.max(2, p.score * 0.8)
+    const seg = (cls, n) => (n ? h('i', { class: cls, css: { height: `${(n / counted) * 100}%` } }) : null)
+    return h('div', { class: `trend-col${isCurrent ? ' current' : ''}${isBase ? ' base' : ''}`, title: `${p.label || p.id}: score ${fmtScore(p.score)}, ${p.pass} of ${p.total} pass` },
+      h('span', { class: 'trend-val num' }, fmtScore(p.score)),
+      h('div', { class: 'trend-bar', css: { height: `${height}%` } }, seg('seg-pass', p.pass), seg('seg-flaky', p.flaky), seg('seg-fail', p.fail), seg('seg-skip', p.total - p.pass - p.flaky - p.fail)))
+  })
+  const names = runs.map((p) => h('span', { class: p.id === DATA.run.id ? 'current' : '', title: p.label || p.id }, p.label || p.id.slice(4, 13)))
+  return h('figure', { class: 'trend' },
+    h('div', { class: 'trend-head' }, h('span', { class: 'label' }, 'Score across saved runs'), h('span', { class: 'label num' }, plural(DATA.history.length, 'run'))),
+    h('div', { class: 'trend-cols', role: 'img', 'aria-label': `Score of the last ${runs.length} runs: ${runs.map((p) => fmtScore(p.score)).join(', ')}` }, cols),
+    h('div', { class: 'trend-names', 'aria-hidden': 'true' }, names),
+    h('figcaption', { class: 'trend-note' }, runs.length < 2 ? 'One run so far. The trend appears from the second run.' : 'Bar height is the score. The colours split each run into passing, flaky and failing cases.'))
+}
+function figure(label, value, sub, cls) {
+  return h('div', { class: `figure ${cls || ''}` }, h('span', { class: 'label' }, label), h('b', { class: 'num' }, value), sub ? h('span', null, sub) : null)
+}
+function drawVerdict() {
+  const { summary: s, comparison: cmp } = DATA
+  const delta = cmp && cmp.score.delta
+  const deltaChip = delta === null || delta === undefined ? null
+    : h('span', { class: `delta num ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}` }, `${delta > 0 ? '▲' : delta < 0 ? '▼' : '='} ${signed(delta)} vs baseline`)
+  const latencyDelta = cmp && cmp.latency.delta
+  const figures = [
+    figure('Passing', [String(s.pass), h('small', null, ` / ${s.total}`)], s.flaky ? `${s.flaky} flaky` : null),
+    cmp && figure('Got worse', String(cmp.regressions.length), 'passed before, not now', cmp.regressions.length ? 'worse' : ''),
+    cmp && figure('Fixed', String(cmp.fixes.length), 'failed before, pass now', cmp.fixes.length ? 'better' : ''),
+    figure('Median latency', fmtMs(s.latencyP50), latencyDelta === null || latencyDelta === undefined ? `p95 ${fmtMs(s.latencyP95)}` : `${signed(latencyDelta, ' ms')} · p95 ${fmtMs(s.latencyP95)}`),
+    s.inputTokens !== null && figure('Tokens', String((s.inputTokens || 0) + (s.outputTokens || 0)), `${s.inputTokens || 0} in · ${s.outputTokens || 0} out`),
+    s.cost !== null && figure('Cost', String(s.cost), 'as reported by the target'),
+  ]
+  const spread = [['seg-pass', s.pass, 'passing'], ['seg-flaky', s.flaky, 'flaky'], ['seg-fail', s.fail, 'failing'], ['seg-fail', s.error, s.error === 1 ? 'error' : 'errors'], ['seg-skip', s.skipped, 'skipped']].filter(([, n]) => n > 0)
+  put(byId('verdict'),
+    h('div', { class: 'verdict-grid' },
+      h('div', null,
+        h('span', { class: 'label' }, 'Score, weighted, out of 100'),
+        h('div', { class: 'score-line' }, h('span', { class: 'score num' }, fmtScore(s.score)), deltaChip),
+        sentence(), gateBlock()),
+      trendPanel()),
+    h('div', { class: 'figures' }, figures),
+    h('div', { class: 'spread' },
+      h('div', { class: 'spread-bar', role: 'img', 'aria-label': spread.map(([, n, name]) => `${n} ${name}`).join(', ') }, spread.map(([cls, n]) => h('i', { class: cls, css: { flex: `${n} 1 0` } }))),
+      h('div', { class: 'legend' }, spread.map(([cls, n, name]) => h('span', null, h('i', { class: cls }), `${n} ${name}`)))))
+}
+
+// ---------- what changed ----------
+function openCase(id) {
+  state.status = 'all'; state.tag = ''; state.q = ''; state.open = id
+  applyFilters()
+  const el = byId(`case-${id}`)
+  if (!el) return
+  el.open = true
+  el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+}
+function drawChanges() {
+  const cmp = DATA.comparison
+  const box = byId('changes')
+  if (!cmp) { box.hidden = true; return }
+  const inputOf = (id) => (DATA.cases.find((c) => c.id === id) || {}).input
+  const column = (cls, title, rows, none) => h('div', { class: `change-col ${cls}` },
+    h('h3', null, h('span', null, title), h('span', { class: 'num' }, String(rows.length))),
+    h('ul', null, rows.length
+      ? rows.map((r) => h('li', null, h('button', { class: 'jump', type: 'button', onclick: () => openCase(r.id) }, r.id), h('p', null, r.reason || inputOf(r.id))))
+      : h('li', { class: 'none' }, none)))
+  const also = [cmp.added.length && `${plural(cmp.added.length, 'new case')}: ${cmp.added.join(', ')}`, cmp.removed.length && `${plural(cmp.removed.length, 'case')} no longer in the set: ${cmp.removed.join(', ')}`].filter(Boolean)
+  put(box,
+    h('div', { class: 'section-head' },
+      h('h2', null, 'What changed'),
+      h('p', null, `against ${runName(DATA.baseline)} · ${cmp.unchanged.pass} still passing, ${cmp.unchanged.fail} still failing`)),
+    h('div', { class: 'change-grid' },
+      column('worse', 'Got worse', cmp.regressions, 'Nothing that passed before fails now.'),
+      column('better', 'Fixed', cmp.fixes, 'Nothing that failed before passes now.')),
+    also.length ? h('p', { class: 'also' }, also.join(' · ')) : null)
+}
+
+// ---------- case detail ----------
+function answerBody(text, error, parts, keep) {
+  if (error) return h('div', { class: 'answer-text is-error' }, error)
+  if (!text) return h('div', { class: 'answer-text is-empty' }, '(empty answer)')
+  if (!parts) return h('div', { class: 'answer-text' }, text)
+  return h('div', { class: 'answer-text' }, parts.filter((p) => p.op === 'same' || p.op === keep).flatMap((p, i) => [i ? ' ' : '', p.op === 'same' ? p.text : h(keep === 'del' ? 'del' : 'ins', null, p.text)]))
+}
+/** A word diff, or null when the two answers share so little that marking every word would only add noise. */
+function usefulDiff(before, after) {
+  const parts = wordDiff(before, after)
+  if (!parts) return null
+  const size = (op) => parts.filter((p) => p.op === op).reduce((n, p) => n + p.text.length, 0)
+  return size('same') >= MIN_SHARED_FOR_DIFF * Math.max(size('same') + size('del'), size('same') + size('add')) ? parts : null
+}
+function answersBlock(c, attempt) {
+  const base = c.base
+  const nowHead = h('h4', null, 'This run', h('span', { class: `status ${attempt.error ? 'error' : attempt.pass === null ? 'skipped' : attempt.pass ? 'pass' : 'fail'}` }, attempt.error ? 'Error' : attempt.pass === null ? 'Skipped' : attempt.pass ? 'Pass' : 'Fail'))
+  if (!base) return h('section', { class: 'answer now' }, nowHead, answerBody(attempt.answer, attempt.error))
+  const same = !attempt.error && !base.error && attempt.answer === base.answer
+  const parts = same || attempt.error || base.error ? null : usefulDiff(base.answer, attempt.answer)
+  if (same) put(nowHead, h('span', { class: 'same-note' }, 'same text as the baseline'))
+  return h('div', { class: 'pair' },
+    h('section', { class: 'answer base' },
+      h('h4', null, /^baseline$/i.test(runName(DATA.baseline)) ? 'Baseline' : `Baseline · ${runName(DATA.baseline)}`, h('span', { class: `status ${base.status}` }, STATUS_NAMES[base.status])),
+      answerBody(base.answer, base.error, parts, 'del')),
+    h('section', { class: 'answer now' }, nowHead, answerBody(attempt.answer, attempt.error, parts, 'add')))
+}
+function checksBlock(c, attempt) {
+  const checks = attempt.checks || []
+  if (!checks.length) return null
+  const baseChecks = (c.base && c.base.checks) || []
+  return h('section', null,
+    h('h4', null, 'Checks'),
+    h('ul', { class: 'checks' }, checks.map((k, i) => {
+      const was = baseChecks[i] && baseChecks[i].type === k.type && baseChecks[i].pass !== k.pass && baseChecks[i].pass !== null && k.pass !== null
+      return h('li', { class: k.pass === false ? 'failed' : '' },
+        h('span', { class: `mark ${k.pass === null ? 'none' : k.pass ? 'pass' : 'fail'}`, 'aria-label': k.pass === null ? 'skipped' : k.pass ? 'passed' : 'failed' }, k.pass === null ? '–' : k.pass ? '✓' : '✕'),
+        h('span', { class: 'check-type' }, k.type, k.modelJudged ? [' ', h('span', { class: 'badge judged' }, 'model-judged')] : null),
+        h('span', null, k.expected),
+        h('span', { class: 'check-got' }, k.detail, was ? h('span', { class: 'was' }, `baseline: ${baseChecks[i].pass ? 'passed' : 'failed'} (${baseChecks[i].detail})`) : null))
+    })))
+}
+function passagesBlock(c, attempt) {
+  const sources = attempt.sources || []
+  if (!sources.length) return null
+  const wanted = c.expectedSources.map((s) => s.toLowerCase())
+  return h('section', null,
+    h('h4', null, 'Retrieved passages'),
+    h('ol', { class: 'passages' }, sources.map((s, i) => {
+      const hit = wanted.includes(String(s.id).toLowerCase())
+      return h('li', { class: hit ? 'hit' : '' },
+        h('span', { class: 'rank num' }, String(i + 1)),
+        h('div', null,
+          h('div', { class: 'passage-head' }, s.id, hit ? h('span', { class: 'hitmark' }, 'expected source') : null, s.score !== undefined ? h('span', { class: 'pill' }, `score ${s.score}`) : null),
+          s.text ? h('p', { class: 'passage-text' }, s.text) : null))
+    })))
+}
+function toolsBlock(attempt) {
+  const calls = attempt.toolCalls || []
+  if (!calls.length) return null
+  return h('section', null,
+    h('h4', null, 'Tool trace'),
+    h('ol', { class: 'tools' }, calls.map((call, i) => h('li', null,
+      h('span', { class: 'rank num' }, String(i + 1)),
+      h('div', null, h('span', { class: 'passage-head' }, call.name), h('pre', null, JSON.stringify(call.arguments, null, 2)))))))
+}
+function factsBlock(c, attempt) {
+  const usage = attempt.usage || {}
+  const facts = [
+    `latency ${fmtMs(attempt.latencyMs)}`,
+    c.base && c.latencyDelta !== null && `baseline ${fmtMs(c.base.latencyMs)}`,
+    attempt.retries ? `${attempt.retries} ${attempt.retries === 1 ? 'retry' : 'retries'}` : null,
+    usage.inputTokens !== undefined && `${usage.inputTokens} tokens in`,
+    usage.outputTokens !== undefined && `${usage.outputTokens} tokens out`,
+    usage.cost !== undefined && `cost ${usage.cost}`,
+    `weight ${c.weight}`,
+  ].filter(Boolean)
+  return h('div', { class: 'facts' }, facts.map((f) => h('span', null, f)))
+}
+function drawDetail(c, holder, index) {
+  const attempt = c.attempts[index] || { checks: [] }
+  const picker = c.attempts.length > 1 ? h('div', { class: 'attempts' }, h('span', { class: 'label' }, 'Attempt'),
+    c.attempts.map((a, i) => h('button', { class: 'chip', type: 'button', 'aria-pressed': String(i === index), onclick: () => drawDetail(c, holder, i) }, `${i + 1}`, h('b', null, a.error ? 'error' : a.pass ? 'pass' : a.pass === null ? 'skip' : 'fail')))) : null
+  holder.replaceChildren()
+  put(holder,
+    h('div', { class: 'pair' },
+      h('section', null, h('h4', null, 'Question'), h('p', { class: 'question' }, c.input)),
+      h('section', null, h('h4', null, 'Expected'), h('p', { class: 'expected' }, c.expected || 'See the checks below.'), c.note ? h('p', { class: 'note' }, c.note) : null)),
+    picker,
+    answersBlock(c, attempt), checksBlock(c, attempt), passagesBlock(c, attempt), toolsBlock(attempt), factsBlock(c, attempt))
+}
+
+// ---------- case list ----------
+function caseRow(c) {
+  const judged = (c.attempts[0] && c.attempts[0].checks || []).some((k) => k.modelJudged && k.pass !== null)
+  const holder = h('div', { class: 'detail' })
+  const row = h('details', { class: `case is-${c.change || 'plain'}`, id: `case-${c.id}` },
+    h('summary', null,
+      h('span', { class: `status ${c.status}` }, STATUS_NAMES[c.status]),
+      h('div', { class: 'case-main' }, h('div', { class: 'case-id' }, c.id), h('div', { class: 'case-q' }, c.input)),
+      h('div', { class: 'case-side' },
+        c.change === 'regressed' ? h('span', { class: 'badge regressed' }, 'Got worse') : null,
+        c.change === 'fixed' ? h('span', { class: 'badge fixed' }, 'Fixed') : null,
+        c.change === 'new' ? h('span', { class: 'badge new' }, 'New') : null,
+        judged ? h('span', { class: 'badge judged' }, 'model-judged') : null,
+        c.tags.map((t) => h('span', { class: 'pill' }, t))),
+      h('span', { class: `case-score num ${c.score === 1 ? 'full' : ''}`, title: 'Share of the checks passed, by weight' }, fmtPct(c.score)),
+      h('span', { class: 'case-ms num' }, fmtMs(c.latencyMs)),
+      h('span', { class: 'chev', 'aria-hidden': 'true' })),
+    holder)
+  row.addEventListener('toggle', () => {
+    if (row.open && !holder.childElementCount) drawDetail(c, holder, Math.max(0, c.attempts.findIndex((a) => a.error || a.pass === false)))
+    if (row.open) state.open = c.id
+    else if (state.open === c.id) state.open = ''
+    writeHash()
+  })
+  return row
+}
+function matches(c) {
+  const filter = FILTERS.find((f) => f.key === state.status)
+  if (!filter.test(c)) return false
+  if (state.tag && !c.tags.includes(state.tag)) return false
+  const q = state.q.trim().toLowerCase()
+  return !q || [c.id, c.input, c.expected || '', ...c.attempts.map((a) => a.answer || '')].some((text) => text.toLowerCase().includes(q))
+}
+function applyFilters() {
+  let shown = 0
+  for (const c of DATA.cases) {
+    const visible = matches(c)
+    byId(`case-${c.id}`).hidden = !visible
+    if (visible) shown++
+  }
+  for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', String(b.dataset.filter === state.status))
+  for (const b of document.querySelectorAll('[data-tag]')) b.setAttribute('aria-pressed', String(b.dataset.tag === state.tag))
+  byId('search').value = state.q
+  byId('shown').textContent = shown === DATA.cases.length ? `${plural(shown, 'case')}, ordered with what got worse first` : `${shown} of ${plural(DATA.cases.length, 'case')} shown`
+  byId('empty').hidden = shown > 0
+  writeHash()
+}
+function drawCases() {
+  const order = { regressed: 0, fixed: 1 }
+  const rank = (c) => order[c.change] ?? (c.status === 'pass' ? 4 : c.status === 'skipped' ? 5 : 3)
+  DATA.cases = DATA.cases.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map(({ c }) => c)
+  const tags = [...new Set(DATA.cases.flatMap((c) => c.tags))].sort()
+  const filters = FILTERS.filter((f) => DATA.comparison || !['regressed', 'fixed'].includes(f.key))
+  put(byId('cases'),
+    h('div', { class: 'section-head' }, h('h2', null, 'Cases'), h('p', { id: 'shown', 'aria-live': 'polite' })),
+    h('div', { class: 'toolbar' },
+      h('div', { class: 'toolbar-row', role: 'group', 'aria-label': 'Filter by result' },
+        filters.map((f) => h('button', { class: 'chip', type: 'button', 'data-filter': f.key, onclick: () => { state.status = f.key; applyFilters() } }, f.name, h('b', { class: 'num' }, String(DATA.cases.filter(f.test).length)))),
+        h('input', { class: 'search', id: 'search', type: 'search', placeholder: 'Search questions and answers', 'aria-label': 'Search questions and answers', oninput: (e) => { state.q = e.target.value; applyFilters() } })),
+      tags.length ? h('div', { class: 'toolbar-row', role: 'group', 'aria-label': 'Filter by tag' },
+        h('span', { class: 'label' }, 'Tags'),
+        tags.map((t) => h('button', { class: 'chip tag', type: 'button', 'data-tag': t, onclick: () => { state.tag = state.tag === t ? '' : t; applyFilters() } }, t, h('b', { class: 'num' }, `${DATA.summary.byTag[t].pass}/${DATA.summary.byTag[t].total}`)))) : null),
+    h('div', { class: 'case-list' }, DATA.cases.map(caseRow)),
+    h('p', { class: 'empty', id: 'empty', hidden: true }, 'No case matches these filters.'))
+}
+
+function drawFoot() {
+  const judged = DATA.summary.modelJudgedChecks
+  put(byId('foot'),h('div', { class: 'foot-inner' },
+    h('div', null, h('h3', null, 'Read this report with care'), h('ul', null, LIMITS.map((t) => h('li', null, t)),
+      h('li', null, judged ? `${plural(judged, 'check')} per run in this report ${judged === 1 ? 'was' : 'were'} scored by a model (${DATA.run.judge ? DATA.run.judge.model : 'judge'}) and ${judged === 1 ? 'is' : 'are'} marked "model-judged".` : 'No check in this run was scored by a model.'))),
+    h('div', null, h('h3', null, 'About this file'), h('p', null, `Made by eval-studio on ${fmtDate(DATA.generatedAt)}. One file, nothing loaded from the network. Obvious secrets are masked before saving.`))))
+}
+
+readHash()
+applyTheme()
+drawMast()
+applyTheme()
+drawVerdict()
+drawChanges()
+drawCases()
+drawFoot()
+const opened = state.open
+applyFilters()
+if (opened && byId(`case-${opened}`)) { byId(`case-${opened}`).open = true; state.open = opened; writeHash() }
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
+</script>
+</body>
+</html>
