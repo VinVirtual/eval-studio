@@ -38,6 +38,12 @@ export function lintCases(cases, options = {}) {
     else if (c.id) seen.set(c.id, i)
     out.push(...lintCase(c, i))
   })
+  for (const c of cases) {
+    const judgeOnly = c.checks.length > 0 && c.checks.every((k) => isModelJudged(k?.type))
+    if (judgeOnly && !options.judgeEnabled && c.tags.includes(mustPassTag)) {
+      out.push(issue('error', 'must-pass-skipped', c.id || 'case', `is "${mustPassTag}" but has only model-judged checks, and the judge is off, so it would always be skipped; add a plain check or turn the judge on`))
+    }
+  }
   const judged = cases.filter((c) => c.checks.some((k) => isModelJudged(k?.type))).length
   if (judged && !options.judgeEnabled) out.push(issue('info', 'judge-off', 'cases', `${judged} case(s) have a model-judged check; these are skipped because the judge is off`))
   if (!cases.some((c) => c.tags.includes(mustPassTag))) out.push(issue('info', 'must-pass', 'cases', `no case is tagged "${mustPassTag}"; tag the few that must never fail`))

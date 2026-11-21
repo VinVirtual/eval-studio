@@ -86,6 +86,13 @@ test('lint: warnings and notes', () => {
   assert.equal(countLevel(lintCases([good({ checks: [{ type: 'judge', rubric: 'r' }, { type: 'refusal' }] })], { judgeEnabled: true }), 'info'), 0)
 })
 
+test('lint: a must-pass case with only model-judged checks is an error while the judge is off', () => {
+  const judgeOnly = good({ id: 'm', tags: ['must-pass'], checks: [{ type: 'judge', rubric: 'r' }] })
+  assert.ok(rules(lintCases([judgeOnly]), 'error').includes('must-pass-skipped'))
+  assert.ok(!rules(lintCases([judgeOnly], { judgeEnabled: true }), 'error').includes('must-pass-skipped'))
+  assert.ok(!rules(lintCases([good({ id: 'n', tags: [], checks: [{ type: 'judge', rubric: 'r' }] })]), 'error').includes('must-pass-skipped'))
+})
+
 test('lint: an unreachable target, a missing key and a broken config are errors', async () => {
   const dead = createAdapter({ type: 'http', url: 'http://127.0.0.1:9/ask' })
   assert.deepEqual(rules(await lintTarget({ adapter: dead, env: {} }), 'error'), ['unreachable'])

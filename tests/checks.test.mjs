@@ -69,6 +69,41 @@ test('number reads numbers out of text and allows a tolerance', async () => {
   assert.equal((await check({ type: 'number', value: 1 }, 'none')).detail, 'no number in the answer')
 })
 
+test('number: a hyphen between words or digits is not a minus sign', async () => {
+  assert.deepEqual(numbersIn('pages 5-10'), [5, 10])
+  assert.deepEqual(numbersIn('on 2026-01-31'), [2026, 1, 31])
+  assert.deepEqual(numbersIn('COVID-19 cases'), [19])
+  assert.deepEqual(numbersIn('it fell by -3, then -2.5 (x=-4)'), [-3, -2.5, -4])
+  assert.deepEqual(numbersIn('2,500 and 1,5'), [2500, 1, 5]) // decimal commas are not understood
+  assert.equal(await passes({ type: 'number', value: -10 }, 'See pages 5-10.'), false)
+  assert.equal(await passes({ type: 'number', value: 10 }, 'See pages 5-10.'), true)
+})
+
+test('regex: a pattern that would take forever is stopped after its time limit', async () => {
+  const slow = { type: 'regex', pattern: '^(a|aa)+$', timeoutMs: 200 } // not caught by the nested-quantifier rule
+  const started = Date.now()
+  const out = await check(slow, 'a'.repeat(40) + 'b')
+  assert.equal(out.pass, false); assert.match(out.detail, /took longer than 200 ms and was stopped/)
+  assert.ok(Date.now() - started < 3000)
+  assert.equal(await passes({ type: 'regex', pattern: '^a+b$' }, 'aaab'), true) // a fresh worker takes over after the stop
+})
+
+test('regex: nested quantifiers are refused before anything runs, in regex checks and in tool arguments', async () => {
+  for (const pattern of ['(a+)+$', '(\\w*)*x', '(ab{1,})+', '(?:x+y)*z']) assert.match(validateCheck({ type: 'regex', pattern })[0] ?? '', /repeated group/, pattern)
+  assert.deepEqual(validateCheck({ type: 'regex', pattern: '(ab)+c+' }), [])
+  assert.match(validateCheck({ type: 'tool-call', name: 't', args: { q: '/(a+)+/' } })[0], /args pattern/)
+  assert.match(validateCheck({ type: 'tool-call', name: 't', args: { q: '/(/' } })[0], /not valid/)
+  const out = await check({ type: 'regex', pattern: '(a+)+$' }, 'aaaa')
+  assert.equal(out.pass, false); assert.match(out.detail, /not usable/)
+})
+
+test('tool-call with min 0 passes when the tool is never called, and still applies max', async () => {
+  assert.equal(await passes({ type: 'tool-call', name: 'search', min: 0 }, 'no tools here'), true)
+  assert.equal(await passes({ type: 'tool-call', name: 'search', min: 0, max: 1 }, attempt('', { toolCalls: [{ name: 'search', arguments: {} }] })), true)
+  assert.equal(await passes({ type: 'tool-call', name: 'search', min: 0, max: 1 }, attempt('', { toolCalls: [{ name: 'search', arguments: {} }, { name: 'search', arguments: {} }] })), false)
+  assert.deepEqual(validateCheck({ type: 'tool-call', name: 'search', min: 0 }), [])
+})
+
 test('source reports the rank of a retrieval hit', async () => {
   const att = attempt('See [fees].', { sources: [{ id: 'hours' }, { id: 'Fees' }, { id: 'safety' }] })
   const hit = await check({ type: 'source', id: 'fees' }, att)

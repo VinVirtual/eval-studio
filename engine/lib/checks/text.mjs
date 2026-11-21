@@ -1,6 +1,8 @@
 // Checks on the answer text: contains, not-contains, regex, exact, refusal, max-length.
 
 /** Straight quotes, single spaces, trimmed, and lower case unless caseSensitive. */
+import { matchWithTimeLimit, riskyPattern, REGEX_TIME_LIMIT_MS } from './safe-regex.mjs'
+
 export function norm(text, caseSensitive = false) {
   const flat = String(text ?? '')
     .replace(/[\u2018\u2019]/g, "'")
@@ -84,12 +86,18 @@ export const textChecks = {
     validate(c) {
       if (!isText(c.pattern)) return ['pattern must be a non-empty string']
       try { compileRegex(c.pattern, c.flags) } catch (e) { return [`pattern is not a valid regular expression: ${e.message}`] }
+      const risky = riskyPattern(c.pattern)
+      if (risky) return [`pattern ${risky}`]
+      if (c.timeoutMs !== undefined && !(Number.isFinite(c.timeoutMs) && c.timeoutMs > 0)) return ['timeoutMs must be a number above 0']
       return []
     },
     describe: (c) => `matches /${c.pattern}/${c.flags ?? 'i'}`,
-    run(c, attempt) {
-      const m = String(attempt.answer ?? '').match(compileRegex(c.pattern, c.flags))
-      return { pass: Boolean(m), detail: m ? `matched "${m[0]}"` : 'no match' }
+    async run(c, attempt) {
+      const limit = c.timeoutMs ?? REGEX_TIME_LIMIT_MS
+      const out = await matchWithTimeLimit(c.pattern, c.flags ?? 'i', String(attempt.answer ?? ''), limit)
+      if (out.timedOut) return { pass: false, detail: `the pattern took longer than ${limit} ms and was stopped; simplify it` }
+      if (out.error) return { pass: false, detail: `the pattern could not run: ${out.error}` }
+      return { pass: out.match !== null, detail: out.match !== null ? `matched "${out.match}"` : 'no match' }
     },
   },
 

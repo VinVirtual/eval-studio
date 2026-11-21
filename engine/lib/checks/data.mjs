@@ -44,7 +44,11 @@ export function shapeErrors(value, shape, path = '$') {
 
 const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
-const NUMBER = /-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?/g
+// A "-" is a minus sign only when it does not follow a letter, digit, underscore or dot, so
+// "pages 5-10", "2026-01-31" and "COVID-19" give 5 and 10, 2026, 1 and 31, and 19.
+// A comma is read as a thousands separator only before exactly three digits ("2,500" is 2500);
+// decimal commas are not understood ("1,5" reads as 1 and 5): write the expected value with a dot.
+const NUMBER = /(?:(?<![\w.])-)?(?<![\d.])(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)(?:\.\d+)?/g
 export const numbersIn = (text) => (String(text ?? '').match(NUMBER) ?? []).map((n) => Number(n.replace(/,/g, '')))
 
 const MAX_ERRORS_SHOWN = 4

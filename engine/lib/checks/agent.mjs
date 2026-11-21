@@ -1,6 +1,7 @@
 // Checks for retrieval systems and agents: source (retrieval hit with rank), tool-call, no-tool-call.
 import { isObj } from '../util.mjs'
 import { norm, quote } from './text.mjs'
+import { riskyPattern } from './safe-regex.mjs'
 
 const sameId = (a, b) => norm(a) === norm(b)
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -32,6 +33,13 @@ export function argsLike(expected, actual, path = 'arguments') {
     return Object.entries(expected).flatMap(([key, want]) => argsLike(want, actual[key], `${path}.${key}`))
   }
   return expected === actual || (typeof expected === 'number' && Number(actual) === expected) ? [] : [`${path} should be ${JSON.stringify(expected)}, is ${JSON.stringify(actual)}`]
+}
+
+/** The "/like this/" patterns inside expected arguments. */
+function argPatterns(value) {
+  if (typeof value === 'string') return [value.match(/^\/(.+)\/([a-z]*)$/)?.[1]].filter(Boolean)
+  if (Array.isArray(value)) return value.flatMap(argPatterns)
+  return isObj(value) ? Object.values(value).flatMap(argPatterns) : []
 }
 
 const callsNamed = (attempt, name) => (attempt.toolCalls ?? []).filter((call) => sameId(call.name, name))
@@ -69,20 +77,26 @@ export const agentChecks = {
       const problems = []
       if (!(typeof c.name === 'string' && c.name.trim())) problems.push('name must be a non-empty string')
       if (c.args !== undefined && !isObj(c.args)) problems.push('args must be an object')
+      for (const pattern of argPatterns(c.args)) {
+        try { new RegExp(pattern) } catch (e) { problems.push(`args pattern /${pattern}/ is not valid: ${e.message}`); continue }
+        if (riskyPattern(pattern)) problems.push(`args pattern /${pattern}/ ${riskyPattern(pattern)}`)
+      }
       for (const key of ['min', 'max']) if (c[key] !== undefined && !(Number.isInteger(c[key]) && c[key] >= 0)) problems.push(`${key} must be a whole number of 0 or more`)
       return problems
     },
     describe: (c) => `calls tool ${c.name}${c.args ? ` with arguments like ${JSON.stringify(c.args)}` : ''}`,
     run(c, attempt) {
       const calls = callsNamed(attempt, c.name)
-      if (!calls.length) {
+      const min = c.min ?? 1
+      const fitting = c.args ? calls.filter((call) => argsLike(c.args, call.arguments).length === 0) : calls
+      const count = fitting.length
+      if (count < min && !calls.length) {
         const others = namesCalled(attempt)
         return { pass: false, detail: others.length ? `not called (called: ${others.join(', ')})` : 'no tool was called' }
       }
-      const fitting = c.args ? calls.filter((call) => argsLike(c.args, call.arguments).length === 0) : calls
-      if (!fitting.length) return { pass: false, detail: argsLike(c.args, calls[0].arguments).join('; ') }
-      const count = fitting.length
-      if (count < (c.min ?? 1)) return { pass: false, detail: `called ${count} time(s), needed at least ${c.min}` }
+      if (count < min && !count) return { pass: false, detail: argsLike(c.args, calls[0].arguments).join('; ') }
+      if (count < min) return { pass: false, detail: `called ${count} time(s), needed at least ${min}` }
+      if (!calls.length) return { pass: true, detail: 'not called, which min 0 allows' }
       if (c.max !== undefined && count > c.max) return { pass: false, detail: `called ${count} time(s), allowed at most ${c.max}` }
       return { pass: true, detail: `called ${count} time(s)${c.args ? ', arguments fit' : ''}` }
     },
