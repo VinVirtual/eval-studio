@@ -34,7 +34,12 @@ export function createCommandAdapter(target, { baseDir = process.cwd() } = {}) {
         // detached: the command gets its own process group, so a timeout can stop the shell and
         // everything it started (a pipeline, a server it forked), not just the shell.
         const options = { cwd: baseDir, detached: true, stdio: ['pipe', 'pipe', 'pipe'] }
-        const child = useShell ? spawn(target.command, { ...options, shell: true }) : spawn(target.command, fillTemplate(target.args, vars), options)
+        // Shell mode runs the configured command string as written (it is trusted project config, like a
+        // package.json script, so pipelines work). Case text never goes into that string: it reaches the
+        // command on stdin only. With "args" there is no shell and slots fill separate argv entries.
+        const child = useShell
+          ? spawn(target.command, { ...options, shell: true }) // skill-ci: allow footguns/shell-true
+          : spawn(target.command, fillTemplate(target.args, vars), options)
         let stdout = ''
         let stderr = ''
         let settled = false

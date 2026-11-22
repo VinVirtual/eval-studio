@@ -2,7 +2,7 @@
 import { test, after } from 'node:test'
 import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createAdapter, targetTypes } from '../engine/lib/adapters/index.mjs'
@@ -102,6 +102,21 @@ test('command target: question on stdin, answer on stdout, as text or JSON', asy
   assert.deepEqual(await json.probe(), { ok: true })
   await assert.rejects(createAdapter({ type: 'command', command: 'echo oops >&2; exit 3' }).call(aCase()), /exited with code 3: oops/)
   await assert.rejects(createAdapter({ type: 'command', command: 'echo not-json', output: 'json' }).call(aCase()), /did not print valid JSON/)
+})
+
+test('command target: shell syntax in case text is passed as data and never run', async () => {
+  const marks = ['subshell', 'backtick', 'semicolon', 'argv'].map((name) => join(dir, `pwned-${name}`))
+  const hostile = `$(touch ${marks[0]}) \`touch ${marks[1]}\`; touch ${marks[2]} && echo pwned`
+  const nasty = aCase({ input: hostile, vars: { v: hostile }, messages: [{ role: 'user', content: hostile }] })
+  // shell mode: the question arrives on stdin, byte for byte
+  assert.equal((await createAdapter({ type: 'command', command: 'cat' }).call(nasty)).answer, hostile)
+  const asJson = await createAdapter({ type: 'command', command: 'cat', input: 'json' }).call(nasty)
+  assert.equal(JSON.parse(asJson.answer).input, hostile)
+  // args mode: slots become whole argv entries, with no shell in between
+  writeFileSync(join(dir, 'argv.mjs'), `console.log(JSON.stringify(process.argv.slice(2)))`)
+  const argv = createAdapter({ type: 'command', command: process.execPath, args: ['argv.mjs', '{{input}}', 'v={{vars.v}}', `$(touch ${marks[3]})`] }, { baseDir: dir })
+  assert.deepEqual(JSON.parse((await argv.call(nasty)).answer), [hostile, `v=${hostile}`, `$(touch ${marks[3]})`])
+  for (const mark of marks) assert.equal(existsSync(mark), false, `${mark} was created: case text ran as a command`)
 })
 
 test('module target: calls the exported function with the question and options', async () => {

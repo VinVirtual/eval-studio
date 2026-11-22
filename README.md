@@ -122,8 +122,8 @@ These are the defaults. Flags override them for one command: `--max-regressions`
 ## Development
 
 ```bash
-./evals test        # 72 tests with node --test: every check type, comparison and gate, redaction, CSV, lint,
-                    # each adapter against a local stub server, the runner, the judge, report data, and the
+./evals test        # 74 tests with node --test: every check type, comparison and gate, redaction, CSV, lint,
+                    # each adapter against a local stub server, shell syntax in case text never running, the runner, the judge, report data, and the
                     # command line itself in throwaway projects
 ```
 
