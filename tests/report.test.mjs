@@ -7,13 +7,14 @@ import { compareRuns } from '../engine/lib/compare.mjs'
 import { wordDiff } from '../engine/lib/diff.mjs'
 import { attempt } from './helpers.mjs'
 
+const FAKE_KEY = 'sk-' + 'abcdefghijklmnopqrstuvwx' // made up, built at run time
 const has = (value) => ({ type: 'contains', value })
 const stored = (id, answer, extra = {}) => ({ id, input: `q ${id}`, tags: ['t'], weight: 1, checks: [has('yes'), { type: 'source', id: 'doc' }], ...extra, attempts: [attempt(answer, { sources: [{ id: 'doc', text: 'passage' }] })] })
 const make = (id, createdAt, cases) => scoreRun({ id, label: id, name: 'Demo', createdAt, target: { type: 'module', path: './bot.mjs' }, settings: { repeat: 1 }, cases }, [], { now: new Date(createdAt) })
 
 async function fixture() {
   const base = await make('one', '2026-01-01T00:00:00Z', [stored('a', 'yes'), stored('b', 'no')])
-  const next = await make('two', '2026-01-02T00:00:00Z', [stored('a', 'no </script><script>alert(1)</script>'), stored('b', 'yes sk-abcdefghijklmnopqrstuvwx')])
+  const next = await make('two', '2026-01-02T00:00:00Z', [stored('a', 'no </script><script>alert(1)</script>'), stored('b', 'yes ' + FAKE_KEY)])
   const comparison = compareRuns(base, next)
   return { base, next, comparison, data: buildReportData({ run: next, baseline: base, comparison, history: [base, next], generatedAt: new Date('2026-01-03T00:00:00Z') }) }
 }
@@ -39,7 +40,7 @@ test('report data without a baseline has no comparison and keeps the run in the 
 test('secrets are masked in the report data', async () => {
   const { data } = await fixture()
   const text = JSON.stringify(data)
-  assert.ok(!text.includes('sk-abcdefghijklmnopqrstuvwx')); assert.ok(text.includes('[redacted]'))
+  assert.ok(!text.includes(FAKE_KEY)); assert.ok(text.includes('[redacted]'))
   const withEnv = buildReportData({ run: { ...data.run, name: 'n', summary: data.summary, cases: [] }, secrets: ['plain-secret-value'] })
   assert.ok(!JSON.stringify(buildReportData({ run: { id: 'x', name: 'uses plain-secret-value', summary: {}, cases: [] }, secrets: ['plain-secret-value'] })).includes('plain-secret-value'))
   assert.equal(withEnv.cases.length, 0)

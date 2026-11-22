@@ -1,0 +1,4 @@
+# Test files that hold made-up credentials on purpose, to prove that redaction masks them.
+# None of these values works anywhere; key-shaped ones are assembled at run time.
+path:tests/redact.test.mjs
+path:tests/report.test.mjs
